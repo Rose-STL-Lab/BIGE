@@ -66,10 +66,10 @@ num_epochs = 10
 # num_epochs = 1000
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
+print("Device:", device)
 # Instantiate the model
 model = MLPModel(input_dim, hidden_dim, output_dim).to(device)
-
+print("Model:", model)
 # Example input (batch_size = batch_size, 196 time steps, 33 features)
 # input_tensor = torch.randn(batch_size, IN_T, IN_D)
 # output_tensor = model(input_tensor)

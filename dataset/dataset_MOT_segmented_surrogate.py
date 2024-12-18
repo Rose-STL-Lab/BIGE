@@ -10,7 +10,7 @@ from glob import glob
 
 
 class VQMotionDataset(data.Dataset):
-    def __init__(self, dataset_name, window_size = 64, unit_length = 4, mode = 'train', data_dirs=['/home/ubuntu/data/MCS_DATA', '/media/shubh/Elements/RoseYu/UCSD-OpenCap-Fitness-Dataset/MCS_DATA', '/mnt/data/MCS_DATA']):
+    def __init__(self, dataset_name, window_size = 64, unit_length = 4, mode = 'train', data_dirs=['/home/ubuntu/data/MCS_DATA', '/media/shubh/Elements/RoseYu/UCSD-OpenCap-Fitness-Dataset/MCS_DATA']):
         self.window_size = window_size
         self.unit_length = unit_length
         self.dataset_name = dataset_name
@@ -24,7 +24,7 @@ class VQMotionDataset(data.Dataset):
         assert self.data_dir is not None, f"Could not find any of the data directories {data_dirs}"
 
         if dataset_name == 'mcs':
-            self.max_motion_length = window_size # 60 # 196 # Maximum length of sequence, change this for different lengths
+            self.max_motion_length = 196 # Maximum length of sequence, change this for different lengths
         
         search_string = pjoin(self.data_dir, 'Data/*/OpenSimData/Dynamics/*_segment_*/kinematics_activations_*_segment_*_muscle_driven.mot')
         self.file_list = glob(search_string)
@@ -140,22 +140,23 @@ class VQMotionDataset(data.Dataset):
             
             if len(motion) >= self.max_motion_length:
                 idx = random.randint(0, len(motion) - self.max_motion_length)
+                len_motion = [idx,len(motion)]
                 motion = motion[idx:idx+self.max_motion_length]
                 activations = self.train_activations[item][idx:idx+self.max_motion_length]
 
-                len_motion = [idx,len(motion)]    
-
+                
             else:
                 # Pad with 0
                 # pad_width = self.max_motion_length - len(motion)
                 # motion = np.pad(motion, ((0, pad_width), (0,0)), mode='constant', constant_values=0)
                 
                 # Repeat motion from start
+                len_motion = [0,len(motion)]
                 repeat_count = (self.max_motion_length + len(motion) - 1) // len(motion)  # Calculate repetitions needed
                 motion = np.tile(motion, (repeat_count, 1))[:self.max_motion_length]
                 
                 activations = np.tile(self.train_activations[item], (repeat_count,1 ))[:self.max_motion_length]
-                len_motion = [0,len(motion)]    
+                    
 
             "Z Normalization"
             # motion = (motion - self.mean) / self.std
@@ -173,21 +174,24 @@ class VQMotionDataset(data.Dataset):
             
             if len(motion) >= self.max_motion_length:
                 idx = random.randint(0, len(motion) - self.max_motion_length)
+                len_motion = [idx,len(motion)]
+                
                 motion = motion[idx:idx+self.max_motion_length]
                 activations = self.test_activations[item][idx:idx+self.max_motion_length]
-                len_motion = [idx,len(motion)]    
+                    
                 
             else:
                 # Pad with 0
                 # pad_width = self.max_motion_length - len(motion)
                 # motion = np.pad(motion, ((0, pad_width), (0,0)), mode='constant', constant_values=0)
+                len_motion = [0,len(motion)]
                 
                 # Repeat motion from start
                 repeat_count = (self.max_motion_length + len(motion) - 1) // len(motion)  # Calculate repetitions needed
                 motion = np.tile(motion, (repeat_count, 1))[:self.max_motion_length]
                 
                 activations = np.tile(self.test_activations[item], (repeat_count,1 ))[:self.max_motion_length]
-                len_motion = [0,len(motion)]    
+                    
 
             "Z Normalization"
             # motion = (motion - self.mean) / self.std
@@ -262,21 +266,8 @@ if __name__ == "__main__":
     train_loader_iter = cycle(test_loader)
     for i in range(10): 
         gt_motion,gt_motion_length, gt_activation, gt_names = next(train_loader_iter)
-        
-        gt_motion_staert = gt_motion_length[0]
-        gt_motion_length = gt_motion_length[1]
-        print(gt_motion.shape,gt_motion_length.shape, gt_activation.shape)
+        print(gt_motion.shape,gt_motion_length[0].shape, gt_motion_length[1].shape, gt_activation.shape)
     
-
-
-    
-    final_loader = DATALoader('mcs', 1, window_size=64, unit_length=2**down_t, mode='limo')
-    for gt_motion,gt_motion_length, gt_activation, gt_name in final_loader: 
-
-        
-        gt_motion_staert = gt_motion_length[0]
-        gt_motion_length = gt_motion_length[1]
-        print(gt_motion.shape,gt_motion_length.shape, gt_activation.shape)
-    
-
+    for gt_motion,gt_motion_length, gt_activation, gt_names in test_loader:
+        print(gt_motion.shape,gt_motion_length[0].shape, gt_motion_length[1].shape, gt_activation.shape)
 

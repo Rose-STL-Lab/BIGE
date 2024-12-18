@@ -1,0 +1,64 @@
+import os 
+import sys
+
+mcs_sessions = ["349e4383-da38-4138-8371-9a5fed63a56a","015b7571-9f0b-4db4-a854-68e57640640d","c613945f-1570-4011-93a4-8c8c6408e2cf","dfda5c67-a512-4ca2-a4b3-6a7e22599732","7562e3c0-dea8-46f8-bc8b-ed9d0f002a77","275561c0-5d50-4675-9df1-733390cd572f","0e10a4e3-a93f-4b4d-9519-d9287d1d74eb","a5e5d4cd-524c-4905-af85-99678e1239c8","dd215900-9827-4ae6-a07d-543b8648b1da","3d1207bf-192b-486a-b509-d11ca90851d7","c28e768f-6e2b-4726-8919-c05b0af61e4a","fb6e8f87-a1cc-48b4-8217-4e8b160602bf","e6b10bbf-4e00-4ac0-aade-68bc1447de3e","d66330dc-7884-4915-9dbb-0520932294c4","0d9e84e9-57a4-4534-aee2-0d0e8d1e7c45","2345d831-6038-412e-84a9-971bc04da597","0a959024-3371-478a-96da-bf17b1da15a9","ef656fe8-27e7-428a-84a9-deb868da053d","c08f1d89-c843-4878-8406-b6f9798a558e","d2020b0e-6d41-4759-87f0-5c158f6ab86a","8dc21218-8338-4fd4-8164-f6f122dc33d9"]
+
+case = int(sys.argv[1])
+
+if case == 0:
+    exp_name = "LowSurrogateFootSlding"
+    low = 0.15
+    high = 0.25
+elif case == 1:
+    exp_name = "MidSurrogateFootSlding"
+    low = 0.25
+    high = 0.35
+elif case == 2:
+    exp_name = "HighSurrogateFootSlding"
+    low = 0.35
+    high = 0.45
+
+os.environ['CUDA_VISIBLE_DEVICES'] = str(case + 2)    
+    
+for session in mcs_sessions[::-1]:
+    print(f"Running Command for Session: conda run -n T2M-GPT python LIMO_Surrogate.py --exp-name {exp_name} --vq-name /data/panini/T2M-GPT/output/VQVAE14/120000.pth  --dataname mcs --seq-len 49 --total-iter 3000 --lr 0.5 --num-runs 1 --min-samples 20  --subject /data/panini/MCS_DATA/Data/{session} --low {low} --high {high}")
+    os.system(f"conda run -n T2M-GPT python LIMO_Surrogate.py --exp-name {exp_name} --vq-name /data/panini/T2M-GPT/output/VQVAE14/120000.pth  --dataname mcs --seq-len 49 --total-iter 3000 --lr 0.5 --num-runs 1 --min-samples 20  --subject /data/panini/MCS_DATA/Data/{session} --low {low} --high {high}")
+
+
+# # VQVAE Training: 
+# python3 train_vq.py --batch-size 256 --lr 2e-4 --total-iter 300000 --lr-scheduler 200000 --nb-code 512 --down-t 2 --depth 3 --dilation-growth-rate 3 --out-dir output --dataname mcs --vq-act relu --quantizer ema_reset --loss-vel 0.5 --recons-loss l1_smooth --exp-name VQVAE4
+
+# # with deepspeed:
+# python3.8 /home/ubuntu/.local/bin/deepspeed train_vq.py --batch-size 256 --lr 2e-4 --total-iter 300000 --lr-scheduler 200000 --nb-code 512 --down-t 2 --depth 3 --dilation-growth-rate 3 --out-dir output --dataname mcs --vq-act relu --quantizer ema_reset --loss-vel 0.5 --recons-loss l1_smooth --exp-name VQVAE9
+
+# # VQVAE sample generation after training (generates both NPY and MOT):
+# python MOT_eval.py --dataname mcs --out-dir output --exp-name VQVAE5_v2 --resume-pth output/VQVAE5_v2/300000.pth
+
+# # LIMO Optimization: 
+# # python VQ_Limo.py --exp-name VQVAE7 --vq-name model pth path --dataname mcs --seq-len 49 --total-iter 20000 --lr 0.1 --num-runs 10 --min-samples 20
+# # Latest: python VQ_Limo.py --exp-name VQVAE7 --vq-name output/VQVAE7_bs32_temporal/400000.pth --dataname mcs --seq-len 49 --total-iter 3000 --lr 0.5 --num-runs 10 --min-samples 20
+
+# # Latestlimo code: /data/panini/digital-coach-anwesh/VQ_Limo_Subject.py
+
+# python VQ_Limo_Subject.py --exp-name Simulation-Train-Data --vq-name output/VQVAE11/260000.pth  --dataname mcs --seq-len 49 --total-iter 3000 --lr 0.5 --num-runs 1 --min-samples 20 
+
+# # Added the same in COMMANDS.txt
+
+
+# # Generate MOT from NPY (after LIMO):
+# python write_mot.py
+
+# # Visualize PCA embeddings of training samples from encoder (embeddings generated during LIMO):
+# # visualize_embedding.ipynb
+
+# # Calculate wasserstein distance:
+# # python calculate_wasserstein.py --folder name to generated data (.NPY) files
+# # python calculate_wasserstein.py "/home/ubuntu/data/opencap-processing/Data/*/OpenSimData/VQVAE7_Temporal_Kinematics/*_pred.npy"
+
+# # Generate mp4 from MOT:
+# # cd UCSD-OpenCap-Fitness_Dataset/
+# # export DISPLAY=:99.0
+# python src/opencap_reconstruction_render.py <absolute subject-path>  <absolute mot-path>  <absolute save-path>
+
+# # Run Surrogate training:
+# python3.8 surrogate_training.py

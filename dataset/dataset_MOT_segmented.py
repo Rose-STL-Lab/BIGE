@@ -9,7 +9,7 @@ from glob import glob
 
 
 class VQMotionDataset(data.Dataset):
-    def __init__(self, dataset_name, window_size = 64, unit_length = 4, mode = 'train'):
+    def __init__(self, dataset_name, window_size = 64, unit_length = 4, mode = 'train',mode2='embeddings'):
         self.window_size = window_size
         self.unit_length = unit_length
         self.dataset_name = dataset_name
@@ -32,6 +32,9 @@ class VQMotionDataset(data.Dataset):
         self.test_names = []
         
         self.mode = mode
+        self.mode2 = mode2
+        
+        self.headers = None
         
         for file in tqdm(self.file_list):
             tmp_name = file.split('/')[-1]
@@ -69,6 +72,9 @@ class VQMotionDataset(data.Dataset):
                             rows = [float(row) for row in rows]
                             data['poses'].append(rows)
                         read_rows += 1
+                        
+            self.headers2indices = {header: i-1 if i < 34 else i - len(data['headers'])  for i, header in enumerate(data['headers']) if header != 'time'}
+            self.indices2headers = {i: header for header, i in self.headers2indices.items()}                        
             if data['nRows'] < self.window_size:
                 continue
             data['poses'] = np.array(data['poses'])[:,1:34] # Change to remove time 
@@ -101,8 +107,10 @@ class VQMotionDataset(data.Dataset):
             return len(self.train_data)
         if self.mode == 'test':
             return len(self.test_data)
-        if self.mode == 'limo':
+        if self.mode == 'limo' and self.mode2 == 'metrics':
             return len(self.test_data)
+        else:
+            return len(self.train_data)
 
     def __getitem__(self, item):
         if self.mode == 'train':
@@ -156,13 +164,20 @@ class VQMotionDataset(data.Dataset):
             return motion, len_motion, name
         
         if self.mode == 'limo':
-            motion = self.train_data[item]
-            len_motion = len(motion)
-            name = self.train_names[item]
+            if self.mode2 == 'metrics': 
+                motion = self.test_data[item]
+                len_motion = len(motion) if len(motion) <=self.max_motion_length else self.max_motion_length
+                name = self.test_names[item]
+            else:                     
+                motion = self.train_data[item]
+                len_motion = len(motion)
+                name = self.train_names[item]
             
             if len_motion < self.max_motion_length:
-                pad_width = self.max_motion_length - len_motion
-                motion = np.pad(motion, ((0, pad_width), (0,0)), mode='constant', constant_values=0)
+                # pad_width = self.max_motion_length - len_motion
+                # motion = np.pad(motion, ((0, pad_width), (0,0)), mode='constant', constant_values=0)
+                rc = (196+len(motion)-1)//len(motion)
+                motion = np.tile(motion, (rc,1))[:196]
                 return [motion], [len_motion], [name]
             
             subsequences = []
@@ -201,3 +216,7 @@ def cycle(iterable):
     while True:
         for x in iterable:
             yield x
+
+
+if __name__ == "__main__": 
+    dataloader = DATALoader('mcs',1,window_size=64,unit_length=2**2,mode='limo')

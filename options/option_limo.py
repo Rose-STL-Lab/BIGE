@@ -64,7 +64,7 @@ def get_args_parser():
     parser.add_argument("--resume-pth", type=str, default="output/VQVAE/net_best_fid.pth", help='resume vq pth')
     
     ## output directory 
-    parser.add_argument('--out-dir', type=str, default='output_GPT_Final/', help='output directory')
+    parser.add_argument('--out-dir', type=str, default='/data/panini/MCS_DATA/LIMO/', help='output directory')
     parser.add_argument('--exp-name', type=str, required=True, help='name of the experiment, will create a file inside out-dir')
     parser.add_argument('--vq-name', type=str, default="output/VQVAE/net_best_fid.pth", help='path to the vq-vae model to optimize')
     
@@ -80,5 +80,9 @@ def get_args_parser():
     
     parser.add_argument('--subject', type = str, default = "/data/panini/MCS_DATA/Data/000cffd9-e154-4ce5-a075-1b4e1fd66201/", help='Subject Info in opencap format')
 
+
+    ############# Surrogate Model Options ################
+    parser.add_argument('--low', type=float, default=0.35,   help='Muscle activation lower bound')
+    parser.add_argument('--high', type=float, default=0.45,   help='Muscle activation higher bound')
 
     return parser.parse_args()

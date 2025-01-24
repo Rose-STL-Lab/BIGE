@@ -6,6 +6,10 @@ __pycache__/
 # C extensions
 *.so
 
+# Polyscope files
+.polyscope.ini
+imgui.ini
+
 # Distribution / packaging
 .Python
 build/

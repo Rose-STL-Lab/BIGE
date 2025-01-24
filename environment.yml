@@ -2,6 +2,7 @@ name: T2M-GPT
 channels:
   - pytorch
   - defaults
+  - nvidia
 dependencies:
   - _libgcc_mutex=0.1=main
   - _openmp_mutex=4.5=1_gnu
@@ -48,7 +49,8 @@ dependencies:
   - pillow=8.3.1=py38h2c7a002_0
   - pip=21.0.1=py38h06a4308_0
   - python=3.8.11=h12debd9_0_cpython
-  - pytorch=1.8.1=py3.8_cuda10.1_cudnn7.6.3_0
+  - pytorch
+  - pytorch-cuda=12.4
   - readline=8.1=h27cfd23_0
   - setuptools=52.0.0=py38h06a4308_0
   - six=1.16.0=pyhd3eb1b0_0

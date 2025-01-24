@@ -5,7 +5,7 @@ FROM ubuntu:22.04
 WORKDIR /T2M-GPT
 
 # Install necessary dependencies
-RUN apt-get update && apt-get install -y wget git
+RUN apt-get update && apt-get install -y wget git htop
 
 # Install Miniconda
 RUN MINICONDA_INSTALLER_SCRIPT=Miniconda3-py38_23.1.0-1-Linux-x86_64.sh && \

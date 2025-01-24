@@ -421,12 +421,13 @@ class OSIMRetargetter:
 
         # Experiments_dirs
         self.exp_dir = exp_dir
-        self.exps = [file for file in os.listdir(exp_dir) if os.path.isdir(os.path.join(exp_dir, file))  and 'LIMO' in file]
+        self.exps = [file for file in os.listdir(exp_dir) if os.path.isdir(os.path.join(exp_dir, file))]
 
         # Categories 
-        from classifiers import desc_to_action
+        # from classifiers import desc_to_action
         
-        self.categories = [ x.replace('full', 'fast') for x in  desc_to_action]
+        # self.categories = [ x.replace('full', 'fast') for x in  desc_to_action]
+        self.categories = ['squats']
 
         self.polyscope_scene = {
             "is_true1": False,
@@ -486,22 +487,33 @@ class OSIMRetargetter:
         self.smpl_index = np.array([self.mapping_bodyJoints[name] for name in self.mapping_bodyJoints])
 
 
-    def load_joints(self,motion_path,scale=1.0):
-        motions = np.load(os.path.join(motion_path))
-        num_joints = 22
-        motions = recover_from_ric(torch.from_numpy(motions).float().cuda(), num_joints)
-        motions = motions.detach().cpu().numpy()
-        motions[:,:,2] *= -1 # Replace z-axis with -z-axis.
-        print(f'completed loading {motion_path} with shape: {motions.shape}') 
+    def load_joints(self,motion_path,scale=1.0,isMDM=False):
 
+        # motions = np.load(os.path.join(motion_path))        
+
+
+
+
+        if motions.shape[-1] == 263:
+            num_joints = 22
+            motions = recover_from_ric(torch.from_numpy(motions).float().cuda(), num_joints)
+            motions = motions.detach().cpu().numpy()
+
+        elif motions.shape[-1] == 3:
+            motions = np.load(motion_path,allow_pickle=True).item()['motion'][0].transpose(2,0,1)
+            if motions.shape[0] == 1:
+                motions = motions[0]
+            
+
+
+        # self.T = motions.shape[0]
+        print(f'completed loading {motion_path} with shape: {motions.shape}') 
+        
+        motions[:,:,2] *= -1 # Replace z-axis with -z-axis.
         motions_mean = np.mean(motions, axis=(0,1),keepdims=True)
         motions = scale*(motions - motions_mean) + motions_mean
-  
         self.target_joints = motions
-        self.target_filepath = motion_path
-        # self.T = motions.shape[0]
-
-    
+        self.target_filepath = motion_path    
 
     def retarget(self,lambda_temporal=0.1,max_epochs=2): 
         
@@ -549,7 +561,7 @@ class OSIMRetargetter:
         #         best_error = err
         #         best_error_timestep = t
 
-        self.osim = OSIMSequence.a_pose()
+        # self.osim = OSIMSequence.a_pose()
 
         self.osim.motion = mot_data
         self.osim.n_frames = mot_data.shape[0]
@@ -758,6 +770,7 @@ if __name__ == "__main__":
     parser.add_argument("--out-dir", type=str, default=None, help='Location where predictions are stored.')
     parser.add_argument('--motion-list', default=None, nargs="+", type=str, help="motion name list")
     parser.add_argument("--file", type=str, default=None, help='motion npy file')
+    parser.add_argument("--video_path", type=str, default=None, help='motion npy file')
 
     args = parser.parse_args()
 

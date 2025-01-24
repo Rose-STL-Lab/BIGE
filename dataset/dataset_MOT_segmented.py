@@ -1,3 +1,4 @@
+import os
 import torch
 from torch.utils import data
 import numpy as np
@@ -9,7 +10,7 @@ from glob import glob
 
 
 class VQMotionDataset(data.Dataset):
-    def __init__(self, dataset_name, window_size = 64, unit_length = 4, mode = 'train',mode2='embeddings'):
+    def __init__(self, dataset_name, window_size = 64, unit_length = 4, mode = 'train', mode2='embeddings', data_dirs=['/home/ubuntu/data/MCS_DATA', '/media/shubh/Elements/RoseYu/UCSD-OpenCap-Fitness-Dataset/MCS_DATA']):
         self.window_size = window_size
         self.unit_length = unit_length
         self.dataset_name = dataset_name
@@ -17,12 +18,23 @@ class VQMotionDataset(data.Dataset):
         self.mcs_sessions = ["349e4383-da38-4138-8371-9a5fed63a56a","015b7571-9f0b-4db4-a854-68e57640640d","c613945f-1570-4011-93a4-8c8c6408e2cf","dfda5c67-a512-4ca2-a4b3-6a7e22599732","7562e3c0-dea8-46f8-bc8b-ed9d0f002a77","275561c0-5d50-4675-9df1-733390cd572f","0e10a4e3-a93f-4b4d-9519-d9287d1d74eb","a5e5d4cd-524c-4905-af85-99678e1239c8","dd215900-9827-4ae6-a07d-543b8648b1da","3d1207bf-192b-486a-b509-d11ca90851d7","c28e768f-6e2b-4726-8919-c05b0af61e4a","fb6e8f87-a1cc-48b4-8217-4e8b160602bf","e6b10bbf-4e00-4ac0-aade-68bc1447de3e","d66330dc-7884-4915-9dbb-0520932294c4","0d9e84e9-57a4-4534-aee2-0d0e8d1e7c45","2345d831-6038-412e-84a9-971bc04da597","0a959024-3371-478a-96da-bf17b1da15a9","ef656fe8-27e7-428a-84a9-deb868da053d","c08f1d89-c843-4878-8406-b6f9798a558e","d2020b0e-6d41-4759-87f0-5c158f6ab86a","8dc21218-8338-4fd4-8164-f6f122dc33d9"]
         self.mcs_scores = [4,4,2,3,2,4,3,3,2,3,4,3,4,2,2,3,4,4,3,3,3]
 
+        # Iterate over possible locations for the data, use the first one which exist
+        self.data_dir = next( (data_dir for (n, data_dir) in enumerate(data_dirs) if os.path.isdir(data_dir) and os.path.exists(data_dir) ), None) # If we couldn't find anything, return None
+        assert self.data_dir is not None, f"Could not find any of the data directories {data_dirs}"
+
+
         if dataset_name == 'mcs':
-            self.data_root = '/home/ubuntu/data/HumanML3D' + "/" + mode
+            # self.data_root = '/home/ubuntu/data/HumanML3D' + "/" + mode
             self.max_motion_length = 196 # Maximum length of sequence, change this for different lengths
-            self.meta_dir = '/home/ubuntu/data/HumanML3D'
+            # self.meta_dir = '/home/ubuntu/data/HumanML3D'
         
-        self.file_list = glob("/home/ubuntu/data/MCS_DATA/Data/*/OpenSimData/Dynamics/*_segment_*/kinematics_activations_*_muscle_driven.mot")
+        search_string = pjoin(self.data_dir, 'Data/*/OpenSimData/Dynamics/*_segment_*/kinematics_activations_*_segment_*_muscle_driven.mot')
+        self.file_list = glob(search_string)
+
+        print(f"Found {len(self.file_list)} files in {search_string}")
+
+
+        # self.file_list = glob("/home/ubuntu/data/MCS_DATA/Data/*/OpenSimData/Dynamics/*_segment_*/kinematics_activations_*_muscle_driven.mot")
         self.train_data = []
         self.train_lengths = []
         self.train_names = []

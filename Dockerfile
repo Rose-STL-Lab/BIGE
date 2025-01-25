@@ -42,7 +42,8 @@ RUN bash dataset/prepare/download_model.sh && \
     bash dataset/prepare/download_extractor.sh
 
 # Install additional Python packages
-RUN pip install --user ipykernel nimblephysics deepspeed polyscope
+RUN pip install --user ipykernel nimblephysics deepspeed polyscope easydict trimesh
+RUN pip install --user --force-reinstall numpy==1.22.0
 
 # Install CUDA toolkit
 # RUN apt-get install -y cuda-toolkit-11-2

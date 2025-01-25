@@ -27,6 +27,7 @@ RUN git -c http.sslVerify=false clone https://github.com/Rose-STL-Lab/UCSD-OpenC
 
 
 # Clone the digital-coach-anwesh repository
+WORKDIR /T2M-GPT
 RUN git -c http.sslVerify=false clone https://gitlab.nrp-nautilus.io/shmaheshwari/digital-coach-anwesh.git .
 
 # Copy the environment.yml file and create the conda environment

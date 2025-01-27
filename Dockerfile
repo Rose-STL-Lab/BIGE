@@ -18,7 +18,16 @@ RUN MINICONDA_INSTALLER_SCRIPT=Miniconda3-py38_23.1.0-1-Linux-x86_64.sh && \
 # Update PATH to include conda
 ENV PATH=/usr/local/bin:$PATH
 
+
+
+# Clone UCSD-Github dataset 
+# Set the working directory
+WORKDIR /
+RUN git -c http.sslVerify=false clone https://github.com/Rose-STL-Lab/UCSD-OpenCap-Fitness-Dataset.git
+
+
 # Clone the digital-coach-anwesh repository
+WORKDIR /T2M-GPT
 RUN git -c http.sslVerify=false clone https://gitlab.nrp-nautilus.io/shmaheshwari/digital-coach-anwesh.git .
 
 # Copy the environment.yml file and create the conda environment
@@ -33,7 +42,8 @@ RUN bash dataset/prepare/download_model.sh && \
     bash dataset/prepare/download_extractor.sh
 
 # Install additional Python packages
-RUN pip install --user ipykernel nimblephysics deepspeed polyscope
+RUN pip install --user ipykernel nimblephysics deepspeed polyscope easydict trimesh
+RUN pip install --user --force-reinstall numpy==1.22.0
 
 # Install CUDA toolkit
 # RUN apt-get install -y cuda-toolkit-11-2

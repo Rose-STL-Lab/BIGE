@@ -390,7 +390,10 @@ def get_optimized_z(category=9,initialization='mean', device='cuda'):
     pelvis_tilt_index = val_loader.dataset.headers2indices['pelvis_tilt']
     print("Pelvis tilt index:",pelvis_tilt_index)
     
-
+    hip_flexion_indices = [val_loader.dataset.headers2indices['hip_flexion_l'], val_loader.dataset.headers2indices['hip_flexion_r']]
+    knee_flexion_indices = [val_loader.dataset.headers2indices['knee_angle_l'], val_loader.dataset.headers2indices['knee_angle_r']]
+    ankle_flexion_indices = [val_loader.dataset.headers2indices['ankle_angle_l'], val_loader.dataset.headers2indices['ankle_angle_r']]
+    
     
     # Symmetry conditions 
     symm_left_indices = ['hip_flexion_l', 'knee_angle_l', 'ankle_angle_l']
@@ -510,6 +513,18 @@ def get_optimized_z(category=9,initialization='mean', device='cuda'):
         loss_tilt = torch.mean(pred_motion[:,:,pelvis_tilt_index]**2)
         # loss_tilt = torch.tensor([0.0],device=device)
         
+        
+        # Hip flexion constraint
+        loss_hip_flex = -torch.mean(pred_motion[:,:,hip_flexion_indices]**2)
+        
+        # Knee flexion constraint
+        loss_knee_flex = -torch.mean(pred_motion[:,:,knee_flexion_indices]**2)
+        
+        # print(pred_motion[:,:,knee_flexion_indices])
+        
+        # Ankle flexion constraint
+        loss_ankle_flex = -torch.mean(pred_motion[:,:,ankle_flexion_indices]**2)
+        
 
 
         # Surrogate model loss
@@ -527,13 +542,15 @@ def get_optimized_z(category=9,initialization='mean', device='cuda'):
         surrogate_muscle_activation = torch.mean(surrogate_muscle_activation,dim=0)
         
         hyper_param_dict = {"proximity":0.01, \
-            "tilt":0.001, "symmetry":1,\
+            "tilt":0.000, "hip_flex":0.000, 'knee_flex':0.0001, 'ankle_flex':0.000,\
+            "symmetry":1,\
             "foot":0.1, "foot_sliding":0.1,\
             "temporal":0.5, "temporal_trans":50, "com_acc":100,\
-            "constrain":1}
+            "constrain":0}
 
         loss_dict = OrderedDict([["proximity", loss_proximity], \
-            ["tilt", loss_tilt], ["symmetry", loss_symm], \
+            ["tilt", loss_tilt], ['hip_flex', loss_hip_flex], ['knee_flex', loss_knee_flex], ['ankle_flex', loss_ankle_flex], \
+            ["symmetry", loss_symm], \
             ["foot", foot_loss], ["foot_sliding", foot_sliding_loss], \
             ["temporal", loss_temp], ["temporal_trans", loss_temp_trans], ["com_acc", loss_temp_com],\
             ["constrain", constrain_loss]])

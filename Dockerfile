@@ -1,3 +1,8 @@
+################## How to push to Nautilus Gitlab #####################
+# docker login gitlab-registry.nrp-nautilus.io
+# docker tag digital-coach-anwesh:latest gitlab-registry.nrp-nautilus.io/shmaheshwari/digital-coach-anwesh:latest
+# docker push gitlab-registry.nrp-nautilus.io/shmaheshwari/digital-coach-anwesh:latest
+
 # Use an official Ubuntu runtime as a parent image
 FROM ubuntu:22.04
 

@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dev-pod
+spec:
+  containers:
+  - name: sleep
+    image: ncking/p-bige:latest
+    command: ["/bin/bash", "-c"]
+    args: ["sleep infinity"]
+    resources:
+      limits:
+        nvidia.com/gpu: 1
+      requests:
+        nvidia.com/gpu: 1
+    volumeMounts:
+    - name: biomechanics-dataset
+      mountPath: /home/mnt/data
+  volumes:
+  - name: biomechanics-dataset
+    persistentVolumeClaim:
+      claimName: add-biomechanics-dataset-pvc
+  restartPolicy: Never

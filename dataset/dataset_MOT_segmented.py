@@ -205,7 +205,7 @@ class VQMotionDataset(data.Dataset):
             return subsequences, subsequence_lengths, names
 
 class AddBiomechanicsDataset(data.Dataset):
-    def __init__(self, window_size=64, unit_length=4, mode='train', data_dir='/home/kingn450/Datasets/addb_dataset_publication'):
+    def __init__(self, window_size=64, unit_length=4, mode='train', data_dir='addb_dataset_publication'):
         self.window_size = window_size
         self.unit_length = unit_length
         self.data_dir = data_dir
@@ -295,8 +295,8 @@ class AddBiomechanicsDataset(data.Dataset):
         return motion, len_motion, name
     
 
-def addb_data_loader(window_size=64, unit_length=4, batch_size=1, num_workers=4, mode='train'):
-    dataset = AddBiomechanicsDataset(window_size=window_size, unit_length=unit_length, mode=mode)
+def addb_data_loader(window_size=64, unit_length=4, batch_size=1, num_workers=4, mode='train', data_dir='addb_dataset_publication'):
+    dataset = AddBiomechanicsDataset(window_size=window_size, unit_length=unit_length, mode=mode, data_dir=data_dir)
     loader = torch.utils.data.DataLoader(
         dataset,
         batch_size=batch_size,

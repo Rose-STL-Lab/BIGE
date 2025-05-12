@@ -1,13 +1,13 @@
-import os
-import torch
-from torch.utils import data
-import numpy as np
-from os.path import join as pjoin
-import random
 import codecs as cs
-from tqdm import tqdm
+import nimblephysics as nimble
+import numpy as np
+import os
+import random
+import torch
 from glob import glob
-
+from os.path import join as pjoin
+from torch.utils import data
+from tqdm import tqdm
 
 class VQMotionDataset(data.Dataset):
     def __init__(self, dataset_name, window_size = 64, unit_length = 4, mode = 'train', mode2='embeddings', data_dirs=['/home/ubuntu/data/MCS_DATA', '/media/shubh/Elements/RoseYu/UCSD-OpenCap-Fitness-Dataset/MCS_DATA']):
@@ -204,6 +204,108 @@ class VQMotionDataset(data.Dataset):
 
             return subsequences, subsequence_lengths, names
 
+class AddBiomechanicsDataset(data.Dataset):
+    def __init__(self, window_size=64, unit_length=4, mode='train', data_dir='/home/mnt/data/addb_dataset_publication'):
+        self.window_size = window_size
+        self.unit_length = unit_length
+        self.data_dir = data_dir
+        self.mode = mode
+
+        # Define subdirectories for each paper
+        paper_dirs = [
+            "train/No_Arm/Falisse2016_Formatted_No_Arm",
+            "train/No_Arm/Uhlrich2023_Opencap_Formatted_No_Arm",
+            "train/No_Arm/Wang2023_Formatted_No_Arm",
+            "train/No_Arm/Han2023_Formatted_No_Arm",
+        ]
+
+        # Collect all .b3d files from the specified subdirectories
+        self.b3d_file_paths = []
+        for paper_dir in paper_dirs:
+            search_path = os.path.join(data_dir, paper_dir, '**', '*.b3d')
+            files = glob(search_path, recursive=True)
+            self.b3d_file_paths.extend(files)
+
+        self.motion_data = []
+        self.motion_lengths = []
+        self.motion_names = []
+        self.motion_fps = []
+
+        for b3d_file in tqdm(self.b3d_file_paths):
+            try:
+                if os.path.getsize(b3d_file) == 0:
+                    continue
+                subject = nimble.biomechanics.SubjectOnDisk(b3d_file)
+                num_trials = subject.getNumTrials()
+                for trial in range(num_trials):
+                    trial_length = subject.getTrialLength(trial)
+                    if trial_length < self.window_size:
+                        continue
+                    frames = subject.readFrames(
+                        trial=trial,
+                        startFrame=0,
+                        numFramesToRead=trial_length,
+                        includeSensorData=False,
+                        includeProcessingPasses=True
+                    )
+                    if not frames:
+                        continue
+                    kin_passes = [frame.processingPasses[0] for frame in frames]
+                    positions = np.array([kp.pos for kp in kin_passes])  # shape: (frames, dofs)
+                    # Get FPS for this trial
+                    seconds_per_frame = subject.getTrialTimestep(trial)
+                    fps = int(round(1.0 / seconds_per_frame)) if seconds_per_frame > 0 else 0
+
+                    # Downsample here, at load time
+                    if fps == 100:
+                        positions = positions[::2]  # Take every 2nd frame
+                    elif fps == 250:
+                        positions = positions[::5]  # Take every 5th frame
+
+                    # After downsampling, skip if too short
+                    if len(positions) < self.window_size:
+                        continue
+
+                    self.motion_data.append(positions)
+                    self.motion_lengths.append(len(positions))
+                    self.motion_names.append(f"{b3d_file}::trial{trial}")
+                    self.motion_fps.append(fps)
+            except Exception as e:
+                print(f"Skipping file {b3d_file} due to error: {e}")
+
+        print("Total number of motions:", len(self.motion_data))
+        print("Example motion shape:", self.motion_data[0].shape if self.motion_data else "None")
+
+    def __len__(self):
+        return len(self.motion_data)
+
+    def __getitem__(self, item):
+        motion = self.motion_data[item]
+        len_motion = len(motion) if len(motion) <= self.window_size else self.window_size
+        name = self.motion_names[item]
+
+        # Crop or pad to window_size (no downsampling here)
+        if len(motion) >= self.window_size:
+            idx = random.randint(0, len(motion) - self.window_size)
+            motion = motion[idx:idx + self.window_size]
+        else:
+            repeat_count = (self.window_size + len(motion) - 1) // len(motion)
+            motion = np.tile(motion, (repeat_count, 1))[:self.window_size]
+
+        return motion, len_motion, name
+    
+
+def addb_data_loader(window_size=64, unit_length=4, batch_size=1, num_workers=4, mode='train'):
+    dataset = AddBiomechanicsDataset(window_size=window_size, unit_length=unit_length, mode=mode)
+    loader = torch.utils.data.DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=num_workers,
+        drop_last=True
+    )
+    return loader
+
 def DATALoader(dataset_name,
                batch_size,
                num_workers = 4,
@@ -231,4 +333,4 @@ def cycle(iterable):
 
 
 if __name__ == "__main__": 
-    dataloader = DATALoader('mcs',1,window_size=64,unit_length=2**2,mode='limo')
+    dataloader = addb_data_loader(window_size=64, unit_length=4, batch_size=1, mode='train')

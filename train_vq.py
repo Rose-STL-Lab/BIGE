@@ -17,7 +17,7 @@ from models.evaluator_wrapper import EvaluatorModelWrapper
 import warnings
 warnings.filterwarnings('ignore')
 from utils.word_vectorizer import WordVectorizer
-# import nimblephysics as nimble
+import nimblephysics as nimble
 import deepspeed
 
 
@@ -67,7 +67,8 @@ def get_foot_losses(motion, y_translation=0.0,feet_threshold=0.01):
 ##### ---- Exp dirs ---- #####
 args = option_vq.get_args_parser()
 torch.manual_seed(args.seed)
-torch.cuda.set_device(args.local_rank)
+if torch.cuda.is_available():
+    torch.cuda.set_device(args.local_rank)
 
 args.out_dir = os.path.join(args.out_dir, f'{args.exp_name}')
 os.makedirs(args.out_dir, exist_ok = True)
@@ -87,10 +88,13 @@ else :
     dataset_opt_path = 'checkpoints/t2m/Comp_v6_KLD005/opt.txt'
     args.nb_joints = 22
 
+args.nb_joints = 23 # fixed issues
+
 logger.info(f'Training on {args.dataname}, motions are with {args.nb_joints} joints')
 
-wrapper_opt = get_opt(dataset_opt_path, torch.device('cuda'))
-eval_wrapper = EvaluatorModelWrapper(wrapper_opt)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+wrapper_opt = get_opt(dataset_opt_path, device)
+#eval_wrapper = EvaluatorModelWrapper(wrapper_opt)
 
 
 ##### ---- Dataloader ---- #####
@@ -99,18 +103,20 @@ eval_wrapper = EvaluatorModelWrapper(wrapper_opt)
 #                                         window_size=args.window_size,
 #                                         unit_length=2**args.down_t)
 
-train_loader = dataset_MOT_segmented.DATALoader(args.dataname,
-                                        args.batch_size,
-                                        window_size=args.window_size,
-                                        unit_length=2**args.down_t)
+train_loader = dataset_MOT_segmented.addb_data_loader(
+    window_size=args.window_size,
+    unit_length=2**args.down_t,
+    batch_size=args.batch_size,
+    mode=args.dataname
+)
 
 # train_loader_iter = dataset_MOT_MCS.cycle(train_loader)
 train_loader_iter = dataset_MOT_segmented.cycle(train_loader)
 
-val_loader = dataset_TM_eval.DATALoader(args.dataname, False,
-                                        32,
-                                        w_vectorizer,
-                                        unit_length=2**args.down_t)
+# val_loader = dataset_TM_eval.DATALoader(args.dataname, False,
+#                                         32,
+#                                         w_vectorizer,
+#                                         unit_length=2**args.down_t)
 
 ##### ---- Network ---- #####
 net = vqvae.HumanVQVAE(args, ## use args to define different parameters in different quantizers
@@ -128,10 +134,10 @@ net = vqvae.HumanVQVAE(args, ## use args to define different parameters in diffe
 
 if args.resume_pth : 
     logger.info('loading checkpoint from {}'.format(args.resume_pth))
-    ckpt = torch.load(args.resume_pth, map_location='cuda')
+    ckpt = torch.load(args.resume_pth, map_location=device)
     net.load_state_dict(ckpt['net'], strict=True)
 net.train()
-net.cuda()
+net.to(device)
 
 ##### ---- Optimizer & Scheduler ---- #####
 optimizer = optim.AdamW(net.parameters(), lr=args.lr, betas=(0.9, 0.99), weight_decay=args.weight_decay)
@@ -170,7 +176,7 @@ for nb_iter in range(1, args.warm_up_iter):
     optimizer, current_lr = update_lr_warm_up(optimizer, nb_iter, args.warm_up_iter, args.lr)
     
     gt_motion,_, names = next(train_loader_iter)
-    gt_motion = gt_motion.cuda().float() # (bs, 64, dim)
+    gt_motion = gt_motion.to(device).float() # (bs, 64, dim)
 
     pred_motion, loss_commit, perplexity = net(gt_motion)
     loss_motion = Loss(pred_motion, gt_motion)
@@ -222,7 +228,7 @@ torch.save({'net' : net.state_dict()}, os.path.join(args.out_dir, 'warmup.pth'))
 for nb_iter in range(1, args.total_iter + 1):
     
     gt_motion,_,_ = next(train_loader_iter)
-    gt_motion = gt_motion.cuda().float() # bs, nb_joints, joints_dim, seq_len
+    gt_motion = gt_motion.to(device).float() # bs, nb_joints, joints_dim, seq_len
     
     pred_motion, loss_commit, perplexity = net(gt_motion)
     loss_motion = Loss(pred_motion, gt_motion)

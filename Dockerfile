@@ -27,8 +27,8 @@ ENV PATH=/usr/local/bin:$PATH
 
 # Clone UCSD-Github dataset 
 # Set the working directory
-WORKDIR /
-RUN git -c http.sslVerify=false clone https://github.com/Rose-STL-Lab/UCSD-OpenCap-Fitness-Dataset.git
+#WORKDIR /
+#RUN git -c http.sslVerify=false clone https://github.com/Rose-STL-Lab/UCSD-OpenCap-Fitness-Dataset.git
 
 
 # Clone the digital-coach-anwesh repository
@@ -37,6 +37,7 @@ RUN git -c http.sslVerify=false clone https://gitlab.nrp-nautilus.io/shmaheshwar
 
 # Copy the environment.yml file and create the conda environment
 # COPY digital-coach-anwesh/environment.yml /T2M-GPT/environment.yml
+COPY . /T2M-GPT
 RUN conda env create -f environment.yml
 
 # Activate the conda environment

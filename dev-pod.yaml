@@ -11,13 +11,17 @@ spec:
     resources:
       limits:
         nvidia.com/gpu: 1
+        memory: 32Gi
+        cpu: "16"
       requests:
         nvidia.com/gpu: 1
+        memory: 32Gi
+        cpu: "16"
     volumeMounts:
-    - name: biomechanics-dataset
-      mountPath: /home/mnt/data
+    - name: sport-analytics
+      mountPath: /home/mnt
   volumes:
-  - name: biomechanics-dataset
+  - name: sport-analytics
     persistentVolumeClaim:
-      claimName: add-biomechanics-dataset-pvc
+      claimName: sport-analytics
   restartPolicy: Never

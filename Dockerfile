@@ -22,7 +22,7 @@ ENV PATH=/usr/local/bin:$PATH
 COPY . /BIGE
 
 # Create the conda environment from environment.yml
-RUN conda env create -f enviornment.yaml
+RUN conda env create -f environment.yaml
 
 # Activate the conda environment for subsequent RUN commands
 SHELL ["conda", "run", "-n", "BIGE", "/bin/bash", "-c"]

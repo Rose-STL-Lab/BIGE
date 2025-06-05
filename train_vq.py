@@ -95,7 +95,8 @@ train_loader = dataset_MOT_segmented.addb_data_loader(
     window_size=args.window_size,
     unit_length=2**args.down_t,
     batch_size=args.batch_size,
-    mode=args.dataname
+    mode='train',
+    data_dir='/home/mnt/AddBiomechanics'
 )
 
 train_loader_iter = dataset_MOT_segmented.cycle(train_loader)
@@ -156,7 +157,7 @@ Loss = losses.ReConsLoss(args.recons_loss, args.nb_joints)
 avg_recons, avg_perplexity, avg_commit, avg_temporal = 0., 0., 0., 0.
 for nb_iter in range(1, args.warm_up_iter):
     optimizer, current_lr = update_lr_warm_up(optimizer, nb_iter, args.warm_up_iter, args.lr)
-    gt_motion,_, names = next(train_loader_iter)
+    gt_motion, _ , names, _ = next(train_loader_iter)
     gt_motion = gt_motion.to(device).float() 
 
     pred_motion, loss_commit, perplexity = net(gt_motion)
@@ -187,7 +188,7 @@ for nb_iter in range(1, args.warm_up_iter):
 avg_recons, avg_perplexity, avg_commit, avg_temporal = 0., 0., 0., 0.
 torch.save({'net' : net.state_dict()}, os.path.join(args.out_dir, 'warmup.pth'))
 for nb_iter in range(1, args.total_iter + 1):
-    gt_motion,_,_ = next(train_loader_iter)
+    gt_motion,_,_,_ = next(train_loader_iter)
     gt_motion = gt_motion.to(device).float() 
     
     pred_motion, loss_commit, perplexity = net(gt_motion)

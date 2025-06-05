@@ -5,9 +5,14 @@ metadata:
 spec:
   containers:
   - name: sleep
-    image: ncking/p-bige:latest
+    image: ncking/bige:latest
+    workingDir: /home/mnt
     command: ["/bin/bash", "-c"]
-    args: ["sleep infinity"]
+    args:
+      - |
+        conda init bash && \
+        source ~/.bashrc && \
+        sleep infinity
     resources:
       limits:
         nvidia.com/gpu: 1

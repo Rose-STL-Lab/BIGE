@@ -31,6 +31,19 @@ ENV PATH=/usr/local/bin:$PATH
 #RUN git -c http.sslVerify=false clone https://github.com/Rose-STL-Lab/UCSD-OpenCap-Fitness-Dataset.git
 
 
+##### Install nimblephysics 
+WORKDIR /
+RUN git -c http.sslVerify=false clone https://github.com/shubhMaheshwari/nimblephysics.git
+WORKDIR /nimblephysics
+RUN chmod +x ci/manylinux/ubuntu.sh
+RUN ./ci/manylinux/ubuntu.sh
+
+
+
+
+
+
+
 # Clone the digital-coach-anwesh repository
 WORKDIR /T2M-GPT
 RUN git -c http.sslVerify=false clone https://gitlab.nrp-nautilus.io/shmaheshwari/digital-coach-anwesh.git .
@@ -53,6 +66,10 @@ RUN pip install --user --force-reinstall numpy==1.22.0
 
 # Install CUDA toolkit
 # RUN apt-get install -y cuda-toolkit-11-2
+
+
+
+
 
 # Set up Xvfb for Polyscope
 RUN apt-get install -y xvfb

@@ -32,6 +32,15 @@ from osim import OSIMSequence
 class VisualizeCommand():
     def __init__(self):
         super().__init__()
+        
+        self.sample = None
+        self.selected_dataset = None
+        self.selected_experiment = None
+        self.selected_trial = None
+        self.selected_subject = None
+        self.selected_exercise = None
+        self.samples = []
+        self.gui = None
 
     def ensure_geometry(self, geometry: str):
         if geometry is None:
@@ -51,6 +60,9 @@ class VisualizeCommand():
         if not geometry.endswith('/'):
             geometry += '/'
         return geometry
+
+
+
 
     def register_subcommand(self, subparsers: argparse._SubParsersAction):
         subparser = subparsers.add_parser('visualize', help='Visualize the performance of a model on dataset.')
@@ -89,6 +101,96 @@ class VisualizeCommand():
         subparser.add_argument('--predict-wrench-components', type=int, nargs='+', default=[i for i in range(12)],
                                help='Which wrench components to train.')
 
+
+
+    def on_dropdown_change(self, key, value):
+        print(f"Dropdown changed: {key} -> {value}")
+        if key == "Dataset":
+            self.selected_dataset = value
+            # Update experiment dropdown options based on dataset
+            experiments = self.get_experiments_for_dataset(value)
+            # self.gui.nativeAPI().setDropdownOptions("Experiment", experiments)
+        elif key == "Experiment":
+            self.selected_experiment = value
+            # Update trial dropdown options based on experiment
+            trials = self.get_trials_for_experiment(value)
+            # self.gui.nativeAPI().setDropdownOptions("Trial", trials)
+        elif key == "Trial":
+            self.selected_trial = value
+            # Update subject dropdown options based on trial
+            subjects = self.get_subjects_for_trial(value)
+            # self.gui.nativeAPI().setDropdownOptions("Subject", subjects)
+        elif key == "Subject":
+            self.selected_subject = value
+            # Update exercise dropdown options based on subject
+            exercises = self.get_exercises_for_subject(value)
+            # self.gui.nativeAPI().setDropdownOptions("Exercise", exercises)
+        elif key == "Exercise":
+            self.selected_exercise = value
+            # Load the selected sample
+            self.load_selected_sample()
+        else:
+            print(f"Unknown dropdown: {key}")
+
+
+    # Dummy implementations for option retrieval, replace with your logic
+    def get_experiments_for_dataset(self, dataset):
+        return ["Exp1", "Exp2"]
+    def get_trials_for_experiment(self, experiment):
+        return ["Trial1", "Trial2"]
+    def get_subjects_for_trial(self, trial):
+        return ["Subject1", "Subject2"]
+    def get_exercises_for_subject(self, subject):
+        return ["Squat", "Jump"]
+
+    def load_selected_sample(self):
+        print(f"Loading sample for: {self.selected_dataset}, {self.selected_experiment}, {self.selected_trial}, {self.selected_subject}, {self.selected_exercise}")
+        # Implement your sample loading logic here
+
+    def create_gui(self):
+        world = nimble.simulation.World()
+        world.setGravity([0, -9.81, 0])
+
+        gui = NimbleGUI(world)
+        gui.serve(8000)
+        self.gui = gui  # Save reference for use in on_dropdown_change
+
+        gui.nativeAPI().createCollapsibleContainer(label="LeftPanel", pos=np.array([5, 15]),size=np.array([30, 20]))
+        gui.nativeAPI().createText("LeftTitle", "BIGE Demo", np.array([5, 2]), np.array([100, 6]),layer='LeftPanel')
+
+        # Dropdowns for dataset, experiment, trial, subject, exercise
+        gui.nativeAPI().createDropDown("Dataset", 
+            ["Dataset1", "Dataset2"], "LeftPanel",
+            lambda value: self.on_dropdown_change("Dataset", value))
+        gui.nativeAPI().createDropDown(
+            "Experiment", ["Exp1", "Exp2"], "LeftPanel",
+            lambda value: self.on_dropdown_change("Experiment", value),   
+        )
+        gui.nativeAPI().createDropDown(
+            "Trial", ["Trial1", "Trial2"], "LeftPanel",
+            lambda value: self.on_dropdown_change("Trial", value),   
+        )
+        gui.nativeAPI().createDropDown(
+            "Subject-DropDown", ["Subject1", "Subject2"], "LeftPanel",
+            lambda value: self.on_dropdown_change("Subject", value),   
+        )
+        gui.nativeAPI().createDropDown(
+            "Exercise", ["Squat"], "LeftPanel",
+            lambda value: self.on_dropdown_change("Exercise", value),   
+        )
+
+        # Nav Bar (vertical strip)
+        gui.nativeAPI().createCollapsibleContainer(label="NavBar", pos=np.array([5, 80]), size=np.array([90, 5]))
+        nav_items = ["Home", "Plots", "Settings"]
+        for i, label in enumerate(nav_items):
+            gui.nativeAPI().createText(
+                f"NavItem_{i}", label, np.array([0, 60 + i * 10]), np.array([100, 8]), layer='NavBar'
+            )
+
+        # ...existing code for right panel, plots, stat bars, etc...
+
+        return gui
+
     def run(self, args: argparse.Namespace):
         """
         Iterate over all *.b3d files in a directory hierarchy,
@@ -104,16 +206,14 @@ class VisualizeCommand():
                      "LIMO/FinalFinalHigh/mot_visualization/latents_subject_run_d2020b0e-6d41-4759-87f0-5c158f6ab86a/entry_19_FinalFinalHigh.mot"]
 
         compare_files  = [os.path.join(DATA_DIR, compare_file) for compare_file in compare_files]
+    
+
+        gui = self.create_gui()
+
 
         samples = load_samples(compare_files)
         skeletons = [sample.osim.osim.skeleton for sample in samples]
-
-        world = nimble.simulation.World()
-        world.setGravity([0, -9.81, 0])
-
-        gui = NimbleGUI(world)
-        gui.serve(8000)
-
+        
         ticker: nimble.realtime.Ticker = nimble.realtime.Ticker(
             0.04)
 
@@ -123,6 +223,31 @@ class VisualizeCommand():
         if num_frames == 0:
             print('No frames in dataset!')
             exit(1)
+
+        def onDropDownChange(values):
+            print('Drop down changed: ',values)
+            # if name == 'Subject':
+            #     for i in range(len(samples)):
+            #         if samples[i].name == value:
+            #             sample = samples[i]
+            #             break
+            #     else:
+            #         print('No such subject found!')
+            #         return
+            #     sample.osim.skeleton.setPositions(sample.osim.motion[0, :])
+            #     gui.nativeAPI().renderSkeleton(sample.osim.skeleton)
+            for sample_ind, sample in enumerate(samples): 
+                if values == sample.name:
+                    self.sample = samples[sample_ind]
+
+        ### Create containers and dropdown elements 
+        gui.nativeAPI().createDropDown("Experiment", [sample.name for sample in samples], "LeftPanel", onDropDownChange)
+        # gui.nativeAPI().createText("Subject", "Select Subject", np.array([0,0]), np.array([1,1]), layer='Subject')
+        
+        self.sample = samples[0]
+        
+
+
 
         def onKeyPress(key):
             nonlocal playing
@@ -193,8 +318,8 @@ class VisualizeCommand():
                 # pos_in_root_frame = np.copy(inputs[InputDataKeys.POS][0, -1, :].cpu().numpy())
                 # pos_in_root_frame[0:6] = 0
                 # skel.setPositions(pos_in_root_frame)
-                samples[0].osim.osim.skeleton.setPositions(samples[0].osim.motion[frame, :])
-                gui.nativeAPI().renderSkeleton(samples[0].osim.osim.skeleton)
+                self.sample.osim.osim.skeleton.setPositions(self.sample.osim.motion[frame, :])
+                gui.nativeAPI().renderSkeleton(self.sample.osim.osim.skeleton)
 
 
                 # joint_centers = inputs[InputDataKeys.JOINT_CENTERS_IN_ROOT_FRAME][0, -1, :].cpu().numpy()
@@ -344,7 +469,6 @@ def load_samples(compare_files):
             sample = load_subject(file_path)
             samples.extend(sample)
         elif 'OpenSimData/Dynamics' in file_path: # For Dynamics data
-                        
             session = file_path
             for i in range(4):
                 session = os.path.dirname(session)
@@ -352,7 +476,6 @@ def load_samples(compare_files):
             print(session)
             sample = load_retrived_samples(session, file_path)
             samples.append(sample)
-
 
         elif file_path.endswith('.mot'): # For baseline + generated results 
             session = os.path.basename(os.path.dirname(file_path))
@@ -377,8 +500,6 @@ if __name__ == '__main__':
     # Setting the threshold of logger to INFO
     logger.setLevel(logging.INFO)
 
-
-
     commands = [VisualizeCommand()]
 
     # Create an ArgumentParser object
@@ -395,6 +516,6 @@ if __name__ == '__main__':
     # Parse the arguments
     args = parser.parse_args()
 
-    for command in commands:
+    for command in commands:        
         if command.run(args):
             print("Failed in visualization")

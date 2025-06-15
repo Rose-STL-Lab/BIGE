@@ -1,0 +1,89 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: train-vq-job
+spec:
+  template:
+    spec:
+      containers:
+      - name: gpu-container
+        image: gitlab-registry.nrp-nautilus.io/shmaheshwari/digital-coach-anwesh:latest
+        command: ["/bin/bash", "-c"]
+        args:
+          - |
+            conda init bash 
+            source ~/.bashrc
+            source /root/.bashrc
+            conda activate T2M-GPT
+
+            apt-get update && apt-get install -y nvidia-cuda-toolkit && \
+            mkdir -p /usr/local/cuda/bin && \
+            ln -sf /usr/bin/nvcc /usr/local/cuda/bin/nvcc && \
+            ln -sf /usr/lib/x86_64-linux-gnu /usr/local/cuda/lib64 && \
+            export CUDA_HOME=/usr/local/cuda && \
+            export PATH=$PATH:/root/.local/bin && \
+            export PATH=$PATH:$CUDA_HOME/bin:/root/.local/bin && \
+            export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CUDA_HOME/lib64 && \
+
+            export CUDA_HOME=/usr/local/cuda && \
+            export PATH=$PATH:$CUDA_HOME/bin:/root/.local/bin && \
+            export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CUDA_HOME/lib64 && \
+
+            export PATH=$PATH:$CUDA_HOME/bin:/root/.local/bin
+            export PYTHONUNBUFFERED=1
+
+            git clone https://github.com/Starfractor/P-BIGE.git /workspace &&
+            cd /workspace && \
+
+            pip install nimblephysics && \
+            pip install tensorboard && \
+            pip install git+https://github.com/openai/CLIP.git && \
+            pip install scipy && \
+            pip install imageio && \
+            pip install matplotlib && \
+            pip install deepspeed && \
+            sleep 10000
+            deepspeed train_vq.py \
+              --batch-size 256 \
+              --lr 2e-4 \
+              --total-iter 300000 \
+              --lr-scheduler 200000 \
+              --nb-code 512 \
+              --down-t 2 \
+              --depth 3 \
+              --dilation-growth-rate 3 \
+              --out-dir output \
+              --dataname mcs \
+              --vq-act relu \
+              --quantizer ema_reset \
+              --loss-vel 0.5 \
+              --recons-loss l1_smooth \
+              --exp-name VQVAE9_Bs32 
+        resources:
+          limits:
+            nvidia.com/gpu: 2
+            cpu: "2.4"
+            memory: "9830Mi"
+            ephemeral-storage: "20Gi"
+          requests:
+            nvidia.com/gpu: 2
+            cpu: "2"
+            memory: "8Gi"
+            ephemeral-storage: "10Gi"
+        volumeMounts:
+        - name: biomechanics-dataset
+          mountPath: /home/mnt/data
+      volumes:
+      - name: biomechanics-dataset
+        persistentVolumeClaim:
+          claimName: add-biomechanics-dataset-pvc
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: nvidia.com/gpu.product
+                operator: In
+                values:
+                - NVIDIA-GeForce-RTX-2080-Ti
+      restartPolicy: Never

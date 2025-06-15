@@ -6,10 +6,12 @@ def get_args_parser():
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     ## dataloader  
-    parser.add_argument('--dataname', type=str, default='kit', help='dataset directory')
+    parser.add_argument('--dataname', type=str, default='mcs', help='dataset directory')
     parser.add_argument('--batch-size', default=128, type=int, help='batch size')
     parser.add_argument('--window-size', type=int, default=64, help='training motion length')
     parser.add_argument('--local_rank', type=int, default=0, help='Local rank for distributed training')
+    parser.add_argument('--loss_mode', type=str, default='together', help='Keep translational and rotational parts of mot together')
+    parser.add_argument('--subject', type=str, default='/home/ubuntu/data/MCS_DATA/Data/0a959024-3371-478a-96da-bf17b1da15a9')
 
     ## optimization
     parser.add_argument('--total-iter', default=200000, type=int, help='number of total iterations to run')
@@ -20,6 +22,8 @@ def get_args_parser():
 
     parser.add_argument('--weight-decay', default=0.0, type=float, help='weight decay')
     parser.add_argument("--commit", type=float, default=0.02, help="hyper-parameter for the commitment loss")
+    parser.add_argument("--temporal", type=float, default=2, help="hyper-parameter for the temporal loss")
+    parser.add_argument("--penetration", type=float, default=0.05, help="hyper-parameter for the penetration loss")
     parser.add_argument('--loss-vel', type=float, default=0.1, help='hyper-parameter for the velocity loss')
     parser.add_argument('--recons-loss', type=str, default='l2', help='reconstruction loss')
     

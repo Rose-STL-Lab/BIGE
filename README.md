@@ -4,16 +4,25 @@
 [![](https://img.shields.io/badge/Paper-PDF-green?style=flat&logo=arXiv&logoColor=green)](https://rose-stl-lab.github.io/UCSD-OpenCap-Fitness-Dataset/static/pdfs/L4DC_2025_paper_177.pdf)
 [![](https://img.shields.io/badge/Code-Github-red?style=flat&logo=github)](https://gitlab.nrp-nautilus.io/shmaheshwari/digital-coach-anwesh.git)
 [![](https://img.shields.io/badge/tests-passing-brightgreen)](https://github.com/your-repo/actions)
-<!-- ![](https://img.shields.io/badge/Windows-0078D6?style=flat&logo=windows&logoColor=white) -->
 ![](https://img.shields.io/badge/Ubuntu20.04-E95420?style=flat&logo=ubuntu&logoColor=white)
+<!-- ![](https://img.shields.io/badge/Windows-0078D6?style=flat&logo=windows&logoColor=white) -->
 
 
+![Teaser figure](img/BIGE-Diff-Subs.gif)
 
-![Teaser figure](https://rose-stl-lab.github.io/UCSD-OpenCap-Fitness-Dataset/static/images/Sports_Analytic_Mockup_1_V4.png)
+> BIGE can generate motions with varying muscle activations for subjects with different anthropometrics. 
+
+
+## Summary
+
+
 
 > **BIGE** is a framework for generative models to adhere to clinician-defined constraints.  To generate realistic motion, our method uses a biomechanically informed surrogate model to guide the generation process.
 
-## Summary
+![Teaser figure](https://rose-stl-lab.github.io/UCSD-OpenCap-Fitness-Dataset/static/images/Sports_Analytic_Mockup_1_V4.png)
+
+
+
 
 Proper movements enhance mobility, coordination, and muscle activation, which are crucial for performance, injury prevention, and overall fitness. However, traditional simulation tools rely on strong modeling assumptions, are difficult to set up, and are computationally expensive. On the other hand, generative AI approaches provide efficient alternatives to motion generation. However they often lack physiological relevance and do not incorporate biomechanical constraints, limiting their practical applications in sports and exercise science. To address these limitations:
 
@@ -26,12 +35,14 @@ Proper movements enhance mobility, coordination, and muscle activation, which ar
 ## Table of Content
 * [1. Visual Results](#1-visual-results)
 * [2. Installation](#2-installation)
-* [3. Quick Start](#3-quick-start)
-* [4. Train](#4-train)
-* [5. Evaluation](#5-evaluation)
-* [6. SMPL Mesh Rendering](#6-smpl-mesh-rendering)
-* [7. Acknowledgement](#7-acknowledgement)
-* [8. Commands](#Commands)
+* [3. DEMO](#3-demo)
+* [4. VQ-VAE](#4-vq-vae)
+* [5. Surrogate](#5-surrogate)
+* [6. Guidance](#6-guidance)
+* [7. Metrics](#7-metrics)
+* [8. Rendering](#8-rendering)
+* [9. Acknowledgement](#9-acknowledgement)
+
 
 
 
@@ -69,14 +80,16 @@ The code was tested on Python 3.8 and PyTorch 1.8.1.
 
 ### 2.3. Datasets
 
-More details about the dataset used can be found here [[here]](https://rose-stl-lab.github.io/UCSD-OpenCap-Fitness-Dataset/ucsd-opencap-dataset.html)
+More details about the dataset used can be found [[here]](https://rose-stl-lab.github.io/UCSD-OpenCap-Fitness-Dataset/ucsd-opencap-dataset.html)
 
 ### 2.5. Pre-trained models 
 
 The pretrained model files will be stored in the 'pretrained' folder:
 
 ## 3. DEMO (Coming Soon)
+Website: https://bige25f-chat.nrp-nautilus.io/
 
+Docker Image
 
 ## 4. VQ-VAE
 
@@ -89,7 +102,7 @@ python3 train_vq.py --batch-size 256 --lr 2e-4 --total-iter 300000 --lr-schedule
 Train the VQVAE model using DeepSpeed for optimized performance.
 
 ```bash
-python3.8 /home/ubuntu/.local/bin/deepspeed train_vq.py --batch-size 256 --lr 2e-4 --total-iter 300000 --lr-scheduler 200000 --nb-code 512 --down-t 2 --depth 3 --dilation-growth-rate 3 --out-dir output --dataname mcs --vq-act relu --quantizer ema_reset --loss-vel 0.5 --recons-loss l1_smooth --exp-name VQVAE9
+python3.8 /home/ubuntu/.local/bin/deepspeed train_vq.py --batch-size 32 --lr 2e-4 --total-iter 300000 --lr-scheduler 200000 --nb-code 512 --down-t 2 --depth 3 --dilation-growth-rate 3 --out-dir output --dataname mcs --vq-act relu --quantizer ema_reset --loss-vel 0.5 --recons-loss l1_smooth --exp-name VQVAE9_Bs32 --loss_mode separate
 ```
 
 </details>
@@ -178,7 +191,7 @@ To render videos and images, install the [UCSD-OpenCap-Fitness-Dataset](https://
 ### Installation 
 
 ```
-git clone 
+git clone https://github.com/Rose-STL-Lab/UCSD-OpenCap-Fitness-Dataset
 ```
 
 
@@ -204,6 +217,7 @@ python src/plot_3.py <mot-path-1> <mot-path-2> <mot-path-3> <optonal-video-path>
 
 <details><summary>Examples: </summary>   
 - BIGE
+
 ```
 python src/plot_3.py  MCS_DATA/LIMO/FinalFinalHigh/mot_visualization/latents_subject_run_d66330dc-7884-4915-9dbb-0520932294c4/entry_{0,2,19}_FinalFinalHigh.mot render/bige_3.mp4
 ```

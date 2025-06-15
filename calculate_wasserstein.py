@@ -4,7 +4,7 @@ import argparse
 from dataset import dataset_MOT_MCS, dataset_MOT_segmented
 from tqdm import tqdm
 from glob import glob
-from scipy.stats import entropy
+from scipy.stats import entropy, shapiro, kstest, anderson
 
 # Step 1: Load training data (assuming it's already loaded or available)
 def load_training_data():
@@ -133,7 +133,27 @@ def aggregate_mean_and_variance(data):
     """
     mean = np.mean(data)
     std = np.std(data)
-    return mean, std
+    
+    
+    ISNormal = {}
+    # KS Test 
+    ISNormal['KS'] = {}
+    ISNormal['KS']['result'] = True
+    ISNormal['KS']['params'] = {}
+    ISNormal['KS']['params']['statistic'], ISNormal['KS']['params']['pvalue'] = kstest(data.reshape(-1), 'norm', args=(mean, std))
+    if ISNormal['KS']['params']['pvalue'] < 0.05:
+        ISNormal['KS']['result'] = False
+    
+    
+    # Shapiro-Wilk Normality Test
+    ISNormal['SW'] = {}
+    ISNormal['SW']['result'] = True
+    ISNormal['SW']['params'] = {}
+    ISNormal['SW']['params']['statistic'], ISNormal['SW']['params']['pvalue'] = shapiro(data)
+    if ISNormal['SW']['params']['pvalue'] < 0.05:
+        ISNormal['SW']['result'] = False
+    
+    return mean, std, ISNormal
 
 # Step 5: Compute the 2-Wasserstein distance
 def wasserstein_distance_mean_variance(real_data, generated_data):
@@ -146,9 +166,23 @@ def wasserstein_distance_mean_variance(real_data, generated_data):
     Returns:
     - wasserstein_distance (float): the 2-Wasserstein distance
     """
+    
+
+
+    
     # Aggregate data by computing mean and variance
-    mean_real, std_real = aggregate_mean_and_variance(real_data)
-    mean_generated, std_generated = aggregate_mean_and_variance(generated_data)
+    mean_real, std_real, IsNormal = aggregate_mean_and_variance(real_data)
+    
+    for test in IsNormal:
+        if IsNormal[test]['result'] == False:
+            print(f"[{test} failed]:Real data is not normal. Params: {IsNormal[test]['params']}")
+
+    
+    mean_generated, std_generated, IsNormal = aggregate_mean_and_variance(generated_data)
+    for test in IsNormal:
+        if IsNormal[test]['result'] == False:
+            print(f"[{test} failed]:Generated data is not normal. Params: {IsNormal[test]['params']}")
+
 
 
     print("Mean of real data:", mean_real, " Std dev of real data:", std_real)
@@ -157,7 +191,7 @@ def wasserstein_distance_mean_variance(real_data, generated_data):
     # Compute mean and variance terms
     mean_diff_squared = (mean_real - mean_generated) ** 2
     std_diff_squared = (std_real - std_generated) ** 2
-
+ 
     # Compute the 2-Wasserstein distance using the formula
     wasserstein_distance = mean_diff_squared + std_diff_squared
     return wasserstein_distance

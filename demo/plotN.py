@@ -144,9 +144,10 @@ class Visualizer:
        
 			for j,muscle in enumerate(self.ps_data['muscles'][i]):
 				# self.ps_data['ps_muscles_dict'][i][muscle].update_node_positions(self.ps_data['muscles'][i][muscle][self.ps_data['t']  %  T ])
-				edges = np.array([ [i,i+1] for i in range(self.ps_data['muscles'][i][muscle].shape[1]-1)])
-				ps_muscle = ps.register_curve_network(f"{muscle}-{i}",self.ps_data['muscles'][i][muscle][t],edges,color=activation_color[muscle][t])
-				ps_muscle.add_to_group(self.ps_data[f'ps_muscles'][i])
+				if muscle in self.ps_data['muscles'][i]:
+					edges = np.array([ [i,i+1] for i in range(self.ps_data['muscles'][i][muscle].shape[1]-1)])
+					ps_muscle = ps.register_curve_network(f"{muscle}-{i}",self.ps_data['muscles'][i][muscle][t],edges,color=activation_color[muscle][t])
+					ps_muscle.add_to_group(self.ps_data[f'ps_muscles'][i])
 		if not self.ps_data['is_paused']: 
 			self.ps_data['t'] += 1 
 

@@ -80,15 +80,16 @@ The code was tested on Python 3.8 and PyTorch 1.8.1.
 
 ### 2.3. Datasets
 
-More details about the dataset used can be found here [[here]](https://rose-stl-lab.github.io/UCSD-OpenCap-Fitness-Dataset/ucsd-opencap-dataset.html)
+More details about the dataset used can be found [[here]](https://rose-stl-lab.github.io/UCSD-OpenCap-Fitness-Dataset/ucsd-opencap-dataset.html)
 
 ### 2.5. Pre-trained models 
 
 The pretrained model files will be stored in the 'pretrained' folder:
 
-## 3. DEMO 
-Coming Soon
+## 3. DEMO (Coming Soon)
+Website: https://bige25f-chat.nrp-nautilus.io/
 
+Docker Image
 
 ## 4. VQ-VAE
 

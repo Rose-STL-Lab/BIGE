@@ -21,8 +21,14 @@ class VQVAE_251(nn.Module):
         self.code_dim = code_dim
         self.num_code = nb_code
         self.quant = args.quantizer
-        self.encoder = Encoder(33 if args.dataname == 'mcs' else 263, output_emb_width, down_t, stride_t, width, depth, dilation_growth_rate, activation=activation, norm=norm)
-        self.decoder = Decoder(33 if args.dataname == 'mcs' else 263, output_emb_width, down_t, stride_t, width, depth, dilation_growth_rate, activation=activation, norm=norm)
+        if args.dataname == 'kit' or args.dataname == 't2m':
+            num_joints = 263
+        elif args.dataname == 'mcs':
+            num_joints = 33
+        elif args.dataname == 'addb':
+            num_joints = 23
+        self.encoder = Encoder(num_joints, output_emb_width, down_t, stride_t, width, depth, dilation_growth_rate, activation=activation, norm=norm)
+        self.decoder = Decoder(num_joints, output_emb_width, down_t, stride_t, width, depth, dilation_growth_rate, activation=activation, norm=norm)
         if args.quantizer == "ema_reset":
             self.quantizer = QuantizeEMAReset(nb_code, code_dim, args)
         elif args.quantizer == "orig":

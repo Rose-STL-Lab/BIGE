@@ -18,7 +18,7 @@ import trimesh
 import nimblephysics as nimble
 import pickle as pkl
 
-from utils.motion_process import recover_from_ric
+# from utils.motion_process import recover_from_ric
 
 
 def load_osim(osim_path, geometry_path, ignore_geometry=False):
@@ -27,7 +27,7 @@ def load_osim(osim_path, geometry_path, ignore_geometry=False):
     assert os.path.exists(osim_path), f'Could not find osim file {osim_path}'
     osim_path = os.path.abspath(osim_path)
 
-    if geometry_path is not None: 
+    if geometry_path is None: 
         # Check that there is a Geometry folder at the same level as the osim file
         geometry_path = os.path.join(args.out_dir, 'OpenCap_LaiArnoldModified2017_Geometry') 
     

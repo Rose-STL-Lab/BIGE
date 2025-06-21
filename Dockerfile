@@ -2,6 +2,7 @@
 # docker login gitlab-registry.nrp-nautilus.io
 # docker tag digital-coach-anwesh:latest gitlab-registry.nrp-nautilus.io/shmaheshwari/digital-coach-anwesh:latest
 # docker build -t gitlab-registry.nrp-nautilus.io/shmaheshwari/digital-coach-anwesh:latest .
+# docker run --rm -it --entrypoint /bin/bash gitlab-registry.nrp-nautilus.io/shmaheshwari/digital-coach-anwesh:latest
 # docker push gitlab-registry.nrp-nautilus.io/shmaheshwari/digital-coach-anwesh:latest
 
 FROM ubuntu:22.04
@@ -66,6 +67,8 @@ RUN apt-get update && apt-get install -y \
 
 # Set environment variables
 ENV PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH
+ENV LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:/usr/local/lib:/usr/local/lib64:/usr/local/envs/T2M-GPT/lib:$LD_LIBRARY_PATH
+ENV PATH=/usr/local/bin:$PATH
 
 # Install Miniconda and initialize
 RUN cd /tmp \
@@ -78,7 +81,7 @@ RUN cd /tmp \
     && conda clean -afy \
     && rm -rf /tmp/*
 
-ENV PATH=/usr/local/bin:$PATH
+
 
 # Install core math and geometry libraries (Eigen, CCD, ASSIMP)
 RUN cd /tmp \
@@ -202,20 +205,23 @@ RUN cd /tmp \
     && cmake .. -DCMAKE_CXX_FLAGS="-Wno-maybe-uninitialized" \
     && make install \
     && cd /tmp && rm -rf PerfUtils \
-    && PROTOBUF_VERSION="3.14.0" \
+    && PROTOBUF_VERSION="3.20.3" \
     && wget https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOBUF_VERSION}/protobuf-all-${PROTOBUF_VERSION}.tar.gz \
     && tar -xzf protobuf-all-${PROTOBUF_VERSION}.tar.gz \
     && cd protobuf-${PROTOBUF_VERSION} \
     && ./configure \
     && make -j$(nproc) \
+    && make check -j$(nproc) \
     && make install \
+    && ldconfig \
     && cd /tmp && rm -rf protobuf-all-${PROTOBUF_VERSION}.tar.gz protobuf-${PROTOBUF_VERSION} \
-    && git clone --depth 1 --recurse-submodules -b v1.46.0 https://github.com/grpc/grpc \
+    && git clone --depth 1 --recurse-submodules -b v1.46.3 https://github.com/grpc/grpc \
     && cd grpc \
     && mkdir -p cmake/build && cd cmake/build \
-    && cmake -DgRPC_INSTALL=ON -DgRPC_BUILD_TESTS=OFF ../.. \
+    && cmake -DgRPC_INSTALL=ON -DgRPC_BUILD_TESTS=OFF -DgRPC_PROTOBUF_PROVIDER=package ../.. \
     && make -j 4 \
     && make install \
+    && ldconfig \
     && cd /tmp && rm -rf grpc \
     && git clone --depth 1 https://github.com/google/benchmark.git \
     && git clone --depth 1 https://github.com/google/googletest.git benchmark/googletest \
@@ -250,6 +256,39 @@ RUN cd /tmp \
     && cd /tmp && rm -rf ezc3d \
     && ldconfig \
     && rm -rf /tmp/*
+
+
+# Clone main application and setup conda environment
+WORKDIR /T2M-GPT
+RUN git -c http.sslVerify=false clone --depth 1 https://gitlab.nrp-nautilus.io/shmaheshwari/digital-coach-anwesh.git . \
+    && conda env create -f environment.yml \
+    && conda clean -afy
+
+# Set comprehensive environment variables
+ENV PYTHONPATH="/nimblephysics/python:/nimblephysics/build/python:$PYTHONPATH"
+ENV DISPLAY=:99.0
+
+# Activate conda environment for subsequent commands
+SHELL ["conda", "run", "-n", "T2M-GPT", "/bin/bash", "-c"]
+
+# Download models and install Python packages
+RUN bash dataset/prepare/download_model.sh \
+    && bash dataset/prepare/download_extractor.sh \
+    && pip install \
+        ipykernel \
+        deepspeed \
+        polyscope \
+        easydict \
+        trimesh \
+        networkx \
+        tqdm \
+        matplotlib \
+        scipy \
+        scikit-learn \
+    && pip install --force-reinstall numpy==1.22.0 \
+    && pip cache purge
+
+
 # Clone datasets and nimblephysics, build nimblephysics
 WORKDIR /
 RUN echo "🔧 Cloning datasets and building nimblephysics..." \
@@ -276,55 +315,18 @@ print('🎯 Available components:', len([attr for attr in dir(nimble) if not att
     && find /nimblephysics/build -name "*.o" -delete \
     && find /nimblephysics/build -name "CMakeFiles" -type d -exec rm -rf {} + 2>/dev/null || true
 
-# Clone main application and setup conda environment
-WORKDIR /T2M-GPT
-RUN git -c http.sslVerify=false clone --depth 1 https://gitlab.nrp-nautilus.io/shmaheshwari/digital-coach-anwesh.git . \
-    && conda env create -f environment.yml \
-    && conda clean -afy
 
-# Set comprehensive environment variables
-ENV PYTHONPATH="/nimblephysics/python:/nimblephysics/build/python:$PYTHONPATH"
-ENV LD_LIBRARY_PATH="/usr/local/lib:/usr/local/lib64:/usr/local/envs/T2M-GPT/lib:$LD_LIBRARY_PATH"
-ENV PKG_CONFIG_PATH="/usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH"
-ENV DISPLAY=:99.0
 
-# Activate conda environment for subsequent commands
-SHELL ["conda", "run", "-n", "T2M-GPT", "/bin/bash", "-c"]
+# Final test of nimblephysics installation
+RUN echo "🔧 Final nimblephysics test..." \
+    && python -c "\
+import sys; \
+sys.path.insert(0, '/nimblephysics/python'); \
+import nimblephysics as nimble; \
+print('✅ Nimblephysics imported successfully!'); \
+print('📦 Complete physics stack: Eigen, CCD, ASSIMP, MUMPS, IPOPT, FCL, OSG, Protobuf, GRPC, MPFR, ezc3d'); \
+print('🎯 Available components:', len([attr for attr in dir(nimble) if not attr.startswith('_')]), 'items')" \
+    && echo "✅ Final nimblephysics test completed successfully!"
 
-# Download models and install Python packages
-RUN bash dataset/prepare/download_model.sh \
-    && bash dataset/prepare/download_extractor.sh \
-    && pip install \
-        ipykernel \
-        deepspeed \
-        polyscope \
-        easydict \
-        trimesh \
-        networkx \
-        tqdm \
-        matplotlib \
-        scipy \
-        scikit-learn \
-    && pip install --force-reinstall numpy==1.22.0 \
-    && pip cache purge
-
-# Test nimblephysics and create startup script
-# Create startup script
-RUN echo '#!/bin/bash\n\
-set -e\n\
-echo "🌟 Digital Coach - Complete Physics Simulation Stack"\n\
-echo "📦 Libraries: Eigen→CCD→ASSIMP→MUMPS→IPOPT→FCL→OSG→Protobuf→GRPC→MPFR→ezc3d→nimblephysics"\n\
-echo "🖥️  Setting up virtual display..."\n\
-Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &\n\
-sleep 2\n\
-echo "🐍 Initializing conda environment..."\n\
-source /usr/local/etc/profile.d/conda.sh > /dev/null 2>&1 || true\n\
-conda init bash > /dev/null 2>&1 || true\n\
-source ~/.bashrc > /dev/null 2>&1 || true\n\
-echo "✅ Environment ready"\n\
-echo "🚀 Executing: $@"\n\
-exec "$@"' > /start-digital-coach.sh \
-    && chmod +x /start-digital-coach.sh
-
-ENTRYPOINT ["/start-digital-coach.sh"]
+# Set default command
 CMD ["conda", "run", "--no-capture-output", "-n", "T2M-GPT", "bash"]

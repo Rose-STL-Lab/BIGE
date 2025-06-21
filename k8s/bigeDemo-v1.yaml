@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   namespace: spatiotemporal-decision-making
-  name: bige-digital-coach-05cd75b0-ea1d-4dda-84f3-503f48ffc85a
+  name: bige-digital-coach
   labels:
     app: bige
 spec:
@@ -32,7 +32,7 @@ spec:
       protocol: TCP
     - containerPort: 8070
       protocol: TCP
-    command: ["/start-digital-coach.sh"]
+    command: ["conda", "run", "-n", "T2M-GPT", "/bin/bash", "-c"]
     args: 
     - | 
       # Update repositories to latest
@@ -46,11 +46,11 @@ spec:
       ln -sf /mnt/data/MCS_DATA/Data Data
 
       # Install any additional packages if needed
-      conda run -n T2M-GPT pip install networkx tqdm
+      pip install networkx tqdm
 
       # Run the nimble demo
       echo "🚀 Starting nimble-gui demo..."
-      conda run -n T2M-GPT python demo/nimble-gui.py visualize \
+      python demo/nimble-gui.py visualize \
         --geometry-folder /mnt/data/MCS_DATA/OpenCap_LaiArnoldModified2017_Geometry \
         | tee bige-demo.log & 
       

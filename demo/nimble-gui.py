@@ -1,46 +1,31 @@
 import os
 import sys
-import copy
 import time
+import numpy as np 
 import torch
-import logging
-import argparse
-import numpy as np
+from easydict import EasyDict
 
 import nimblephysics as nimble
 from nimblephysics import NimbleGUI
-
 from typing import Dict, Tuple, List
+from website_sample_loader import WebsiteSample
 
-file_path = os.path.abspath(__file__)
-dir_path = os.path.dirname(file_path)
-UCSD_OpenCap_Fitness_Dataset_path = os.path.join(dir_path,'..', '..', 'UCSD-OpenCap-Fitness-Dataset' , 'src')
-UCSD_OpenCap_Fitness_Dataset_path = os.path.abspath(UCSD_OpenCap_Fitness_Dataset_path)
+# Sample loading imports - can be moved to separate file later
+dir_path = os.path.dirname(os.path.abspath(__file__))
+UCSD_OpenCap_Fitness_Dataset_path = os.path.abspath(os.path.join(dir_path,'..', '..', 'UCSD-OpenCap-Fitness-Dataset' , 'src'))
 sys.path.append(UCSD_OpenCap_Fitness_Dataset_path)
-print(UCSD_OpenCap_Fitness_Dataset_path)
+from utils import DATA_DIR
 
 
-
-from utils import DATA_DIR 
-from dataloader import OpenCapDataLoader,MultiviewRGB
-from smpl_loader import SMPLRetarget
-
-# from osim import OSIMSequence
-# Load LaiArnoldModified2017
-from osim import OSIMSequence
-
-class VisualizeCommand():
+class BigeDatasetVisualizer():
     def __init__(self):
         super().__init__()
         
         self.sample = None
-        self.selected_dataset = None
-        self.selected_experiment = None
-        self.selected_trial = None
-        self.selected_subject = None
-        self.selected_exercise = None
+
         self.samples = []
         self.gui = None
+        self.world = None
 
     def ensure_geometry(self, geometry: str):
         if geometry is None:
@@ -61,161 +46,49 @@ class VisualizeCommand():
             geometry += '/'
         return geometry
 
-
-
-
-    def register_subcommand(self, subparsers: argparse._SubParsersAction):
-        subparser = subparsers.add_parser('visualize', help='Visualize the performance of a model on dataset.')
-
-        subparser.add_argument('--dataset-home', type=str, default='../data',
-                               help='The path to the AddBiomechanics dataset.')
-        subparser.add_argument('--model-type', type=str, default='feedforward', help='The model to train.')
-        subparser.add_argument('--output-data-format', type=str, default='all_frames', choices=['all_frames', 'last_frame'], 
-                               help='Output for all frames in a window or only the last frame.')
-        subparser.add_argument('--device', type=str, default='cpu', help='Where to run the code, either cpu or gpu.')
-        subparser.add_argument('--checkpoint-dir', type=str, default='../checkpoints',
-                               help='The path to a model checkpoint to save during training. Also, starts from the '
-                                    'latest checkpoint in this directory.')
-        subparser.add_argument('--geometry-folder', type=str, default=None,
-                               help='Path to the Geometry folder with bone mesh data.')
-        subparser.add_argument('--history-len', type=int, default=50,
-                               help='The number of timesteps of context to show when constructing the inputs.')
-        subparser.add_argument('--stride', type=int, default=5,
-                               help='The number of timesteps of context to show when constructing the inputs.')
-        subparser.add_argument('--dropout', action='store_true', help='Apply dropout?')
-        subparser.add_argument('--dropout-prob', type=float, default=0.5, help='Dropout prob')
-        subparser.add_argument('--hidden-dims', type=int, nargs='+', default=[512, 512],
-                               help='Hidden dims across different layers.')
-        subparser.add_argument('--batchnorm', action='store_true', help='Apply batchnorm?')
-        subparser.add_argument('--activation', type=str, default='sigmoid', help='Which activation func?')
-        subparser.add_argument('--batch-size', type=int, default=32,
-                               help='The batch size to use when training the model.')
-        subparser.add_argument('--short', action='store_true',
-                               help='Use very short datasets to test without loading a bunch of data.')
-        subparser.add_argument('--predict-grf-components', type=int, nargs='+', default=[i for i in range(6)],
-                               help='Which grf components to train.')
-        subparser.add_argument('--predict-cop-components', type=int, nargs='+', default=[i for i in range(6)],
-                               help='Which cop components to train.')
-        subparser.add_argument('--predict-moment-components', type=int, nargs='+', default=[i for i in range(6)],
-                               help='Which moment components to train.')
-        subparser.add_argument('--predict-wrench-components', type=int, nargs='+', default=[i for i in range(12)],
-                               help='Which wrench components to train.')
-
-
-
-    def on_dropdown_change(self, key, value):
-        print(f"Dropdown changed: {key} -> {value}")
-        if key == "Dataset":
-            self.selected_dataset = value
-            # Update experiment dropdown options based on dataset
-            experiments = self.get_experiments_for_dataset(value)
-            # self.gui.nativeAPI().setDropdownOptions("Experiment", experiments)
-        elif key == "Experiment":
-            self.selected_experiment = value
-            # Update trial dropdown options based on experiment
-            trials = self.get_trials_for_experiment(value)
-            # self.gui.nativeAPI().setDropdownOptions("Trial", trials)
-        elif key == "Trial":
-            self.selected_trial = value
-            # Update subject dropdown options based on trial
-            subjects = self.get_subjects_for_trial(value)
-            # self.gui.nativeAPI().setDropdownOptions("Subject", subjects)
-        elif key == "Subject":
-            self.selected_subject = value
-            # Update exercise dropdown options based on subject
-            exercises = self.get_exercises_for_subject(value)
-            # self.gui.nativeAPI().setDropdownOptions("Exercise", exercises)
-        elif key == "Exercise":
-            self.selected_exercise = value
-            # Load the selected sample
-            self.load_selected_sample()
-        else:
-            print(f"Unknown dropdown: {key}")
-
-
-    # Dummy implementations for option retrieval, replace with your logic
-    def get_experiments_for_dataset(self, dataset):
-        return ["Exp1", "Exp2"]
-    def get_trials_for_experiment(self, experiment):
-        return ["Trial1", "Trial2"]
-    def get_subjects_for_trial(self, trial):
-        return ["Subject1", "Subject2"]
-    def get_exercises_for_subject(self, subject):
-        return ["Squat", "Jump"]
-
-    def load_selected_sample(self):
-        print(f"Loading sample for: {self.selected_dataset}, {self.selected_experiment}, {self.selected_trial}, {self.selected_subject}, {self.selected_exercise}")
-        # Implement your sample loading logic here
-
+    def create_default_args(self):
+        """Create default arguments using EasyDict instead of argparse"""
+        args = EasyDict()
+        args.geometry_folder = os.path.join(DATA_DIR, "OpenCap_LaiArnoldModified2017_Geometry")
+        # Set all the default values from the original parser arguments
+        args.dataset_home = '../data'
+        args.model_type = 'feedforward'
+        args.output_data_format = 'all_frames'  # choices: ['all_frames', 'last_frame']
+        args.device = 'cpu'
+        args.checkpoint_dir = '../checkpoints'
+        args.history_len = 50
+        args.stride = 5
+        args.dropout = False  # store_true becomes False by default
+        args.dropout_prob = 0.5
+        args.hidden_dims = [512, 512]
+        args.batchnorm = False  # store_true becomes False by default
+        args.activation = 'sigmoid'
+        args.batch_size = 32
+        args.short = False  # store_true becomes False by default
+        args.predict_grf_components = [i for i in range(6)]
+        args.predict_cop_components = [i for i in range(6)]
+        args.predict_moment_components = [i for i in range(6)]
+        args.predict_wrench_components = [i for i in range(12)]    
+        return args
+    
     def create_gui(self):
         world = nimble.simulation.World()
         world.setGravity([0, -9.81, 0])
 
-        gui = NimbleGUI(world)
+        gui = NimbleGUI(self.world)
         gui.serve(8000)
-        self.gui = gui  # Save reference for use in on_dropdown_change
 
-        gui.nativeAPI().createCollapsibleContainer(label="LeftPanel", pos=np.array([5, 15]),size=np.array([30, 20]))
-        gui.nativeAPI().createText("LeftTitle", "BIGE Demo", np.array([5, 2]), np.array([100, 6]),layer='LeftPanel')
+        return world, gui
 
-        # Dropdowns for dataset, experiment, trial, subject, exercise
-        gui.nativeAPI().createDropDown("Dataset", 
-            ["Dataset1", "Dataset2"], "LeftPanel",
-            lambda value: self.on_dropdown_change("Dataset", value))
-        gui.nativeAPI().createDropDown(
-            "Experiment", ["Exp1", "Exp2"], "LeftPanel",
-            lambda value: self.on_dropdown_change("Experiment", value),   
-        )
-        gui.nativeAPI().createDropDown(
-            "Trial", ["Trial1", "Trial2"], "LeftPanel",
-            lambda value: self.on_dropdown_change("Trial", value),   
-        )
-        gui.nativeAPI().createDropDown(
-            "Subject-DropDown", ["Subject1", "Subject2"], "LeftPanel",
-            lambda value: self.on_dropdown_change("Subject", value),   
-        )
-        gui.nativeAPI().createDropDown(
-            "Exercise", ["Squat"], "LeftPanel",
-            lambda value: self.on_dropdown_change("Exercise", value),   
-        )
-
-        # Nav Bar (vertical strip)
-        gui.nativeAPI().createCollapsibleContainer(label="NavBar", pos=np.array([5, 80]), size=np.array([90, 5]))
-        nav_items = ["Home", "Plots", "Settings"]
-        for i, label in enumerate(nav_items):
-            gui.nativeAPI().createText(
-                f"NavItem_{i}", label, np.array([0, 60 + i * 10]), np.array([100, 8]), layer='NavBar'
-            )
-
-        # ...existing code for right panel, plots, stat bars, etc...
-
-        return gui
-
-    def run(self, args: argparse.Namespace):
+    def run(self, args):
         """
         Iterate over all *.b3d files in a directory hierarchy,
         compute file hash, and move to train or dev directories.
         """
-        if 'command' in args and args.command != 'visualize':
-            return False
 
         geometry = self.ensure_geometry(args.geometry_folder)
+        self.world, self.gui = self.create_gui()
 
-        compare_files = ["Data/d66330dc-7884-4915-9dbb-0520932294c4/MarkerData/SQT01.trc",
-                    "LIMO/ComAcc/mot_visualization/latents_subject_run_000cffd9-e154-4ce5-a075-1b4e1fd66201/entry_17_ComAcc.mot", 
-                     "LIMO/FinalFinalHigh/mot_visualization/latents_subject_run_d2020b0e-6d41-4759-87f0-5c158f6ab86a/entry_19_FinalFinalHigh.mot"]
-
-        compare_files  = [os.path.join(DATA_DIR, compare_file) for compare_file in compare_files]
-    
-
-        gui = self.create_gui()
-
-
-        samples = load_samples(compare_files)
-        skeletons = [sample.osim.osim.skeleton for sample in samples]
-        
-        ticker: nimble.realtime.Ticker = nimble.realtime.Ticker(
-            0.04)
 
         frame: int = 0
         playing: bool = True
@@ -224,31 +97,7 @@ class VisualizeCommand():
             print('No frames in dataset!')
             exit(1)
 
-        def onDropDownChange(values):
-            print('Drop down changed: ',values)
-            # if name == 'Subject':
-            #     for i in range(len(samples)):
-            #         if samples[i].name == value:
-            #             sample = samples[i]
-            #             break
-            #     else:
-            #         print('No such subject found!')
-            #         return
-            #     sample.osim.skeleton.setPositions(sample.osim.motion[0, :])
-            #     gui.nativeAPI().renderSkeleton(sample.osim.skeleton)
-            for sample_ind, sample in enumerate(samples): 
-                if values == sample.name:
-                    self.sample = samples[sample_ind]
-
-        ### Create containers and dropdown elements 
-        gui.nativeAPI().createDropDown("Experiment", [sample.name for sample in samples], "LeftPanel", onDropDownChange)
-        # gui.nativeAPI().createText("Subject", "Select Subject", np.array([0,0]), np.array([1,1]), layer='Subject')
-        
-        self.sample = samples[0]
-        
-
-
-
+        # Add keypress  listener to control playback and space 
         def onKeyPress(key):
             nonlocal playing
             nonlocal frame
@@ -262,260 +111,47 @@ class VisualizeCommand():
                 frame -= 1
                 if frame < 0:
                     frame = num_frames - 5
-            # elif key == 'r':
-            #     loss_evaluator.print_report()
 
-        gui.nativeAPI().registerKeydownListener(onKeyPress)
+        self.gui.nativeAPI().registerKeydownListener(onKeyPress)
+
+
+        compare_files = ["Data/d66330dc-7884-4915-9dbb-0520932294c4/MarkerData/SQT01.trc",
+                    # "LIMO/ComAcc/mot_visualization/latents_subject_run_000cffd9-e154-4ce5-a075-1b4e1fd66201/entry_17_ComAcc.mot", 
+                     "LIMO/FinalFinalHigh/mot_visualization/latents_subject_run_d2020b0e-6d41-4759-87f0-5c158f6ab86a/entry_19_FinalFinalHigh.mot"]
+        compare_files = [os.path.join(DATA_DIR, compare_file) for compare_file in compare_files]
+            
+        # Use the WebsiteSample class to load samples
+        web_samples = [WebsiteSample(f_ind,file_path, self.gui) for f_ind, file_path in enumerate(compare_files)]
+        # Add all skeletons to the shared world
+        for web_sample in web_samples:
+            self.world.addSkeleton(web_sample.skeleton)
 
         def onTick(now):
             with torch.no_grad():
                 nonlocal frame
+                for sample_ind, web_sample in enumerate(web_samples):
+                    motion = web_sample.sample.osim.motion[frame, :].copy()
+                    motion[3] += sample_ind - len(web_samples) / 2  # Offset each sample for visibility
+                    web_sample.skeleton.setPositions(motion)
 
-                # inputs: Dict[str, torch.Tensor]
-                # labels: Dict[str, torch.Tensor]
-                # inputs, labels, batch_subject_index, trial_index = dev_dataset[frame]
-                # batch_subject_indices: List[int] = [batch_subject_index]
-                # batch_trial_indices: List[int] = [trial_index]
-
-                # # Add a batch dimension
-                # for key in inputs:
-                #     inputs[key] = inputs[key].unsqueeze(0)
-                # for key in labels:
-                #     labels[key] = labels[key].unsqueeze(0)
-
-                # # Forward pass
-                # skel_and_contact_bodies = [(dev_dataset.skeletons[i], dev_dataset.skeletons_contact_bodies[i]) for i in batch_subject_indices]
-                # outputs = model(inputs)
-                # skel = skel_and_contact_bodies[0][0]
-                # contact_bodies = skel_and_contact_bodies[0][1]
-
-                # loss_evaluator(inputs, outputs, labels, batch_subject_indices, batch_trial_indices, args, compute_report=True)
-                # if frame % 100 == 0:
-                #     print('Results on Frame ' + str(frame) + '/' + str(num_frames))
-                #     loss_evaluator.print_report(args)
-
-                # # subject_path = train_dataset.subject_paths[batch_subject_indices[0]]
-                # # trial_index = batch_trial_indices[0]
-                # # print('Subject: ' + subject_path + ', trial: ' + str(trial_index))
-
-                # if output_data_format == 'all_frames':
-                #     for key in outputs:
-                #         outputs[key] = outputs[key][:, -1, :]
-                #     for key in labels:
-                #         labels[key] = labels[key][:, -1, :]
-
-                # ground_forces: np.ndarray = outputs[OutputDataKeys.GROUND_CONTACT_FORCES_IN_ROOT_FRAME].numpy()
-                # left_foot_force = ground_forces[0, 0:3]
-                # right_foot_force = ground_forces[0, 3:6]
-
-                # cops: np.ndarray = outputs[OutputDataKeys.GROUND_CONTACT_COPS_IN_ROOT_FRAME].numpy()
-                # left_foot_cop = cops[0, 0:3]
-                # right_foot_cop = cops[0, 3:6]
-
-                # predicted_forces = (left_foot_force, right_foot_force)
-                # predicted_cops = (left_foot_cop, right_foot_cop)
-
-                # pos_in_root_frame = np.copy(inputs[InputDataKeys.POS][0, -1, :].cpu().numpy())
-                # pos_in_root_frame[0:6] = 0
-                # skel.setPositions(pos_in_root_frame)
-                self.sample.osim.osim.skeleton.setPositions(self.sample.osim.motion[frame, :])
-                gui.nativeAPI().renderSkeleton(self.sample.osim.osim.skeleton)
-
-
-                # joint_centers = inputs[InputDataKeys.JOINT_CENTERS_IN_ROOT_FRAME][0, -1, :].cpu().numpy()
-                # num_joints = int(len(joint_centers) / 3)
-                # for j in range(num_joints):
-                #     gui.nativeAPI().createSphere('joint_' + str(j), [0.05, 0.05, 0.05], joint_centers[j * 3:(j + 1) * 3],
-                #                                  [1, 0, 0, 1])
-
-                # root_lin_vel = inputs[InputDataKeys.ROOT_LINEAR_VEL_IN_ROOT_FRAME][0, 0, 0:3].cpu().numpy()
-                # gui.nativeAPI().createLine('root_lin_vel', [[0, 0, 0], root_lin_vel], [1, 0, 0, 1])
-
-                # root_pos_history = inputs[InputDataKeys.ROOT_POS_HISTORY_IN_ROOT_FRAME][0, 0, :].cpu().numpy()
-                # num_history = int(len(root_pos_history) / 3)
-                # for h in range(num_history):
-                #     gui.nativeAPI().createSphere('root_pos_history_' + str(h), [0.05, 0.05, 0.05],
-                #                                  root_pos_history[h * 3:(h + 1) * 3], [0, 1, 0, 1])
-
-                # force_cops = labels[OutputDataKeys.GROUND_CONTACT_COPS_IN_ROOT_FRAME][0, :].cpu().numpy()
-                # force_fs = labels[OutputDataKeys.GROUND_CONTACT_FORCES_IN_ROOT_FRAME][0, :].cpu().numpy()
-                # num_forces = int(len(force_cops) / 3)
-                # force_index = 0
-                # for f in range(num_forces):
-                #     if contact_bodies[f] == 'pelvis':
-                #         continue
-                #     cop = force_cops[f * 3:(f + 1) * 3]
-                #     force = force_fs[f * 3:(f + 1) * 3]
-                #     gui.nativeAPI().createLine('force_' + str(f),
-                #                                [cop,
-                #                                 cop + force],
-                #                                [1, 0, 0, 1])
-
-                #     predicted_cop = predicted_cops[force_index] # contact_bodies[f].getWorldTransform().translation() #
-                #     predicted_force = predicted_forces[force_index]
-                #     gui.nativeAPI().createLine('predicted_force_' + str(f),
-                #                                [predicted_cop,
-                #                                 predicted_cop + predicted_force],
-                #                                [0, 0, 1, 1])
-                    # force_index += 1
+                # Render the entire world
+                self.gui.nativeAPI().renderWorld(self.world, prefix="world")
 
                 if playing:
                     frame += 1
                     if frame >= num_frames - 5:
                         frame = 0
 
+
+        ticker: nimble.realtime.Ticker = nimble.realtime.Ticker(0.04)
         ticker.registerTickListener(onTick)
         ticker.start()
         # Don't immediately exit while we're serving
-        gui.blockWhileServing()
+        self.gui.blockWhileServing()
         return True
 
 
-def load_subject(sample_path,retrieval_path=None):
-    sample = OpenCapDataLoader(sample_path)
-    
-    # Load Video
-    sample.rgb = MultiviewRGB(sample)
-
-    print(f"Session ID: {sample.name} SubjectID:{sample.rgb.session_data['subjectID']} Action:{sample.label}")
-
-    osim_path = os.path.dirname(os.path.dirname(sample.sample_path)) 
-    osim_path = os.path.join(osim_path,'OpenSimData','Model', 'LaiArnoldModified2017_poly_withArms_weldHand_scaled.osim')
-    osim_geometry_path = os.path.join(DATA_DIR,'OpenCap_LaiArnoldModified2017_Geometry')
-
-
-    ###################### Subject Details #################################################### 
-    mot_path = os.path.dirname(os.path.dirname(sample.sample_path))
-    mot_path = os.path.join(mot_path,'OpenSimData','Kinematics',sample.label+ sample.recordAttempt_str + '.mot')
-    mot_path = os.path.abspath(mot_path)
-    print("Loading User motion file:",mot_path)
-    sample.osim_file = mot_path
-
-
-    samples = []
-    # Load Segments
-    if os.path.exists(os.path.join(DATA_DIR,"squat-segmentation-data", sample.openCapID+'.npy')):
-        segments = np.load(os.path.join(DATA_DIR,"squat-segmentation-data", sample.openCapID+'.npy'),allow_pickle=True).item()
-        if os.path.basename(sample.sample_path).split('.')[0] in segments:
-            segments = segments[sample.label+ sample.recordAttempt_str]
-
-
-            for segment in segments:    
-                cur_sample = copy.deepcopy(sample)
-                cur_sample.joints_np = cur_sample.joints_np[segment[0]:segment[1]]
-                cur_sample.osim = OSIMSequence.from_files(osim_path, mot_path, geometry_path=osim_geometry_path,ignore_fps=True, start_frame=segment[0], end_frame=segment[1])
-
-                samples.append(cur_sample)
-                break
-
-    if len(samples) == 0:
-        sample.osim = OSIMSequence.from_files(osim_path, mot_path, geometry_path=osim_geometry_path,ignore_fps=True )
-        samples.append(sample)
-
-    return samples
-
-
-def load_retrived_samples(session, retrieval_path): 
-    ###################### GENERATION DETAILS ####################################################
-
-    # mot_path = os.path.dirname(os.path.dirname(sample.sample_path))
-    # mot_path = os.path.join(mot_path,'OpenSimData','VQVAE7_Temporal_Kinematics',sample.label+ sample.recordAttempt_str + '.mot')
-    # print("Loading Reconstrction file:",mot_path)
-
-    # sample.osim_pred = OSIMSequence.from_files(osim_path, mot_path, geometry_path=osim_geometry_path,ignore_fps=True )    
-
-    # mot_path = "/media/shubh/Elements/RoseYu/UCSD-OpenCap-Fitness-Dataset/MCS_DATA/mot_visualization/constrained_mot_0.002/12.mot"
-    # mot_path = "/media/shubh/Elements/RoseYu/UCSD-OpenCap-Fitness-Dataset/MCS_DATA/mot_visualization/normal_latents_196/entry_2.mot"
-
-    # mot_path = "/media/shubh/Elements/RoseYu/UCSD-OpenCap-Fitness-Dataset/MCS_DATA/mot_visualization/normal_latents_temporal_consistency_v2/entry_9.mot"
-
-
-    assert retrieval_path and os.path.isfile(retrieval_path), f"Unable to load .mot file:{retrieval_path}" 
-
-    mot_path = os.path.abspath(retrieval_path)
-    print("Loading Generatrion file:",mot_path)
-    
-
-    trc_path = os.path.join(DATA_DIR,"Data", session, "MarkerData")
-    trc_file = [os.path.join(trc_path,x) for x in os.listdir(trc_path) if  'sqt' in x.lower()  and x.endswith('.trc')  ][0]
-    sample = OpenCapDataLoader(trc_file)
-    
-    sample.mot_path = mot_path  
- 
-    # Load Video
-    sample.rgb = MultiviewRGB(sample)
-
-    
-
-
-    osim_path = os.path.join(DATA_DIR,"Data", session, "OpenSimData","Model","LaiArnoldModified2017_poly_withArms_weldHand_scaled.osim") 
-    osim_geometry_path = os.path.join(DATA_DIR,'OpenCap_LaiArnoldModified2017_Geometry')
-
-    sample.osim = OSIMSequence.from_files(osim_path, mot_path, geometry_path=osim_geometry_path,ignore_fps=True )   
-    print("MOT DATA:",sample.osim.motion.shape)
-    print("Pelivs:",np.rad2deg(sample.osim.motion[::10,1:3]))
-    print("KNEE Left:",np.rad2deg(sample.osim.motion[::10,10]))
-    print("TIME:",sample.osim.motion[::10,0])
-    # sample.osim.vertices[:,:,2] -= 1  
-    sample.osim_file = retrieval_path
-    return sample
-
-def load_samples(compare_files): 
-    samples = [] 
-    for i in range(0, min(len(compare_files),4)  ): 
-        # file_path = sys.argv[i]
-        file_path = compare_files[i]
-        if file_path.endswith('.trc'):
-            sample = load_subject(file_path)
-            samples.extend(sample)
-        elif 'OpenSimData/Dynamics' in file_path: # For Dynamics data
-            session = file_path
-            for i in range(4):
-                session = os.path.dirname(session)
-            session = os.path.basename(session)
-            print(session)
-            sample = load_retrived_samples(session, file_path)
-            samples.append(sample)
-
-        elif file_path.endswith('.mot'): # For baseline + generated results 
-            session = os.path.basename(os.path.dirname(file_path))
-            session = session.replace("latents_subject_run_","")
-            sample = load_retrived_samples(session,file_path)
-
-            samples.append(sample)
-
-    return samples
-
-
 if __name__ == '__main__':
-    logpath = "log"
-    # Create and configure logger
-    logging.basicConfig(filename=logpath,
-                        format='%(asctime)s %(message)s',
-                        filemode='a')
-
-    # Creating an object
-    logger = logging.getLogger()
-    logger.addHandler(logging.StreamHandler())
-    # Setting the threshold of logger to INFO
-    logger.setLevel(logging.INFO)
-
-    commands = [VisualizeCommand()]
-
-    # Create an ArgumentParser object
-    parser = argparse.ArgumentParser(
-        description='InferBiomechanics Command Line Interface')
-
-    # Split up by command
-    subparsers = parser.add_subparsers(dest="command")
-
-    # Add a parser for each command
-    for command in commands:
-        command.register_subcommand(subparsers)
-
-    # Parse the arguments
-    args = parser.parse_args()
-
-    for command in commands:        
-        if command.run(args):
-            print("Failed in visualization")
+    website = BigeDatasetVisualizer()
+    args = website.create_default_args()
+    website.run(args)

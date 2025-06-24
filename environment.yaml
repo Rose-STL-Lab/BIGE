@@ -10,6 +10,7 @@ dependencies:
   - jupyter
   - matplotlib
   - notebook
+  - openpyxl
   - pandas
   - pip
   - python=3.10
@@ -18,6 +19,8 @@ dependencies:
   - tensorboard
   - pip:
     - deepspeed
+    - ezc3d
     - git+https://github.com/nghorbani/human_body_prior
     - git+https://github.com/openai/CLIP.git
     - nimblephysics
+    - xgboost

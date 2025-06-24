@@ -1,0 +1,44 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dev-job
+spec:
+  template:
+    metadata:
+      name: dev-job
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: nvidia.com/gpu.product
+                operator: In
+                values:
+                - NVIDIA-TITAN-RTX
+      containers:
+      - name: sleep
+        image: ncking/bige:latest
+        command: ["/bin/bash", "-c"]
+        args:
+          - |
+            conda init bash && \
+            source ~/.bashrc && \
+            sleep infinity
+        resources:
+          limits:
+            nvidia.com/gpu: 1
+            memory: 32Gi
+            cpu: "16"
+          requests:
+            nvidia.com/gpu: 1
+            memory: 32Gi
+            cpu: "16"
+        volumeMounts:
+        - name: sport-analytics
+          mountPath: /home/mnt
+      volumes:
+      - name: sport-analytics
+        persistentVolumeClaim:
+          claimName: sport-analytics
+      restartPolicy: Never

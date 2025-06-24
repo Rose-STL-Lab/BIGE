@@ -48,11 +48,13 @@ spec:
       # Install any additional packages if needed
       pip install networkx tqdm
 
+      # Hack for resolving cpp linkage issue with nimblephysics
+      rm $CONDA_PREFIX/lib/libstdc++.so.6
+
+
       # Run the nimble demo
       echo "🚀 Starting nimble-gui demo..."
-      python demo/nimble-gui.py visualize \
-        --geometry-folder /mnt/data/MCS_DATA/OpenCap_LaiArnoldModified2017_Geometry \
-        | tee bige-demo.log & 
+      python demo/nimble-gui.py visualize | tee bige-demo.log & 
       
       # Wait for service to start and show listening ports
       sleep 60
@@ -61,7 +63,8 @@ spec:
       
       # Keep container running and show logs
       echo "✅ Service started. Keeping container alive..."
-      sleep 20000
+      # Run only for 6 hours for now
+      sleep 20000 
       echo "📋 Demo logs:"
       cat bige-demo.log
 

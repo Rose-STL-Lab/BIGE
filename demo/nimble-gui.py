@@ -9,6 +9,7 @@ import nimblephysics as nimble
 from nimblephysics import NimbleGUI
 from typing import Dict, Tuple, List
 from website_sample_loader import WebsiteSample
+from file_locator import FileLocator
 
 # Sample loading imports - can be moved to separate file later
 dir_path = os.path.dirname(os.path.abspath(__file__))
@@ -26,6 +27,8 @@ class BigeDatasetVisualizer():
         self.samples = []
         self.gui = None
         self.world = None
+        
+        self.file_locator = FileLocator()
 
     def ensure_geometry(self, geometry: str):
         if geometry is None:
@@ -114,33 +117,42 @@ class BigeDatasetVisualizer():
 
         self.gui.nativeAPI().registerKeydownListener(onKeyPress)
 
-
-        compare_files = ["Data/d66330dc-7884-4915-9dbb-0520932294c4/MarkerData/SQT01.trc",
+        # Test relevant files
+        compare_files = [
+                    "LIMO/FinalFinalHigh/mot_visualization/latents_subject_run_d2020b0e-6d41-4759-87f0-5c158f6ab86a/entry_19_FinalFinalHigh.mot",
+                    "Data/d66330dc-7884-4915-9dbb-0520932294c4/OpenSimData/Kinematics/SQT01.mot",
+                    # "Data/d66330dc-7884-4915-9dbb-0520932294c4/MarkerData/SQT01.trc",
+                    # "Data/002392d8-b28a-46e9-84ee-65053ec83739/OpenSimData/Dynamics/Sqt02_segment_1/kinematics_activations_Sqt02_segment_1_muscle_driven.mot",
+                    # "t2m_baseline/015b7571-9f0b-4db4-a854-68e57640640d/0d9e84e9-57a4-4534-aee2-0d0e8d1e7c45_SQT01_0_pred_3_radians.mot",
                     # "LIMO/ComAcc/mot_visualization/latents_subject_run_000cffd9-e154-4ce5-a075-1b4e1fd66201/entry_17_ComAcc.mot", 
-                     "LIMO/FinalFinalHigh/mot_visualization/latents_subject_run_d2020b0e-6d41-4759-87f0-5c158f6ab86a/entry_19_FinalFinalHigh.mot"]
+                    ]
+
         compare_files = [os.path.join(DATA_DIR, compare_file) for compare_file in compare_files]
             
         # Use the WebsiteSample class to load samples
-        web_samples = [WebsiteSample(f_ind,file_path, self.gui) for f_ind, file_path in enumerate(compare_files)]
+        web_samples = [WebsiteSample(f_ind,file_path, self.gui, self.file_locator) for f_ind, file_path in enumerate(compare_files)]
         # Add all skeletons to the shared world
         for web_sample in web_samples:
-            self.world.addSkeleton(web_sample.skeleton)
+            if hasattr(web_sample, 'skeleton'):
+                self.world.addSkeleton(web_sample.skeleton)
 
         def onTick(now):
             with torch.no_grad():
                 nonlocal frame
                 for sample_ind, web_sample in enumerate(web_samples):
-                    motion = web_sample.sample.osim.motion[frame, :].copy()
-                    motion[3] += sample_ind - len(web_samples) / 2  # Offset each sample for visibility
+                    sample_frame = frame % web_sample.sample.osim.motion.shape[0]
+                    motion = web_sample.sample.osim.motion[sample_frame, :].copy()
+                    # motion[3] += sample_ind - len(web_samples) / 2  # Offset each sample for visibility
                     web_sample.skeleton.setPositions(motion)
 
                 # Render the entire world
                 self.gui.nativeAPI().renderWorld(self.world, prefix="world")
 
+
                 if playing:
                     frame += 1
-                    if frame >= num_frames - 5:
-                        frame = 0
+                    # if frame >= num_frames - 5:
+                    #     frame = 0
 
 
         ticker: nimble.realtime.Ticker = nimble.realtime.Ticker(0.04)

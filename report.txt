@@ -1,0 +1,113 @@
+Wang2023:
+Activities: 7
+Trials: 120
+  jump: 9
+  land: 9
+  lunge: 9
+  run: 27
+  squat: 9
+  static: 3
+  walk: 54
+
+Subject: Wang2023/Subj04
+File Paths: /home/mnt/AddBiomechanics/train/No_Arm/Wang2023_Formatted_No_Arm/Subj04/Subj04.b3d
+Activities: 6
+Trials: 13
+  jump: 1
+  land: 1
+  lunge: 1
+  run: 3
+  squat: 1
+  walk: 6
+
+Subject: Wang2023/Subj05
+File Paths: /home/mnt/AddBiomechanics/train/No_Arm/Wang2023_Formatted_No_Arm/Subj05/Subj05.b3d
+Activities: 6
+Trials: 13
+  jump: 1
+  land: 1
+  lunge: 1
+  run: 3
+  squat: 1
+  walk: 6
+
+Subject: Wang2023/Subj06
+File Paths: /home/mnt/AddBiomechanics/train/No_Arm/Wang2023_Formatted_No_Arm/Subj06/Subj06.b3d
+Activities: 6
+Trials: 13
+  jump: 1
+  land: 1
+  lunge: 1
+  run: 3
+  squat: 1
+  walk: 6
+
+Subject: Wang2023/Subj07
+File Paths: /home/mnt/AddBiomechanics/train/No_Arm/Wang2023_Formatted_No_Arm/Subj07/Subj07.b3d
+Activities: 6
+Trials: 13
+  jump: 1
+  land: 1
+  lunge: 1
+  run: 3
+  squat: 1
+  walk: 6
+
+Subject: Wang2023/Subj08
+File Paths: /home/mnt/AddBiomechanics/train/No_Arm/Wang2023_Formatted_No_Arm/Subj08/Subj08.b3d
+Activities: 6
+Trials: 13
+  jump: 1
+  land: 1
+  lunge: 1
+  run: 3
+  squat: 1
+  walk: 6
+
+Subject: Wang2023/Subj09
+File Paths: /home/mnt/AddBiomechanics/train/No_Arm/Wang2023_Formatted_No_Arm/Subj09/Subj09.b3d
+Activities: 6
+Trials: 13
+  jump: 1
+  land: 1
+  lunge: 1
+  run: 3
+  squat: 1
+  walk: 6
+
+Subject: Wang2023/Subj10
+File Paths: /home/mnt/AddBiomechanics/test/No_Arm/Wang2023_Formatted_No_Arm/Subj10/Subj10.b3d
+Activities: 7
+Trials: 14
+  jump: 1
+  land: 1
+  lunge: 1
+  run: 3
+  squat: 1
+  static: 1
+  walk: 6
+
+Subject: Wang2023/Subj11
+File Paths: /home/mnt/AddBiomechanics/train/No_Arm/Wang2023_Formatted_No_Arm/Subj11/Subj11.b3d
+Activities: 7
+Trials: 14
+  jump: 1
+  land: 1
+  lunge: 1
+  run: 3
+  squat: 1
+  static: 1
+  walk: 6
+
+Subject: Wang2023/Subj12
+File Paths: /home/mnt/AddBiomechanics/train/No_Arm/Wang2023_Formatted_No_Arm/Subj12/Subj12.b3d
+Activities: 7
+Trials: 14
+  jump: 1
+  land: 1
+  lunge: 1
+  run: 3
+  squat: 1
+  static: 1
+  walk: 6
+

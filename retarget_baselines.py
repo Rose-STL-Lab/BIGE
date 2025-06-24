@@ -1,20 +1,5 @@
-"""
-Code inspired from: https://skel.is.tue.mpg.de 
-
-Copyright©2023 Max-Planck-Gesellschaft zur Förderung
-der Wissenschaften e.V. (MPG). acting on behalf of its Max Planck Institute
-for Intelligent Systems. All rights reserved.
-
-Author: Marilyn Keller
-See https://skel.is.tue.mpg.de/license.html for licensing and contact information.
-"""
-
 import os
-import shutil
 import numpy as np
-import tqdm
-import trimesh
-
 import nimblephysics as nimble
 import pickle as pkl
 

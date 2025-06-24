@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dev-pod
+spec:
+  containers:
+  - name: sleep
+    image: ncking/bige:latest
+    workingDir: /home/mnt
+    command: ["/bin/bash", "-c"]
+    args:
+      - |
+        conda init bash && \
+        source ~/.bashrc && \
+        sleep infinity
+    resources:
+      limits:
+        nvidia.com/gpu: 1
+        memory: 32Gi
+        cpu: "16"
+      requests:
+        nvidia.com/gpu: 1
+        memory: 32Gi
+        cpu: "16"
+    volumeMounts:
+    - name: sport-analytics
+      mountPath: /home/mnt
+  volumes:
+  - name: sport-analytics
+    persistentVolumeClaim:
+      claimName: sport-analytics
+  restartPolicy: Never

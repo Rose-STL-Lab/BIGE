@@ -40,6 +40,8 @@ class WebsiteSample:
 
         self.skeleton = self.sample.osim.osim.skeleton        
 
+        self.preprocess_sample()
+
     
     @staticmethod
     def load_subject(sample_path, retrieval_path=None):
@@ -132,8 +134,78 @@ class WebsiteSample:
             session = os.path.basename(os.path.dirname(file_path))
             session = session.replace("latents_subject_run_","")
             sample = WebsiteSample.load_retrieved_samples(session, file_path)
-        
+
         return sample
+    
+    def load_motion(self, trial_path):
+        motion = load_mot(self.sample.osim.osim, trial_path )
+        print(f"Loaded motion data for trial: {self.selected_trial} from {trial_path} {motion.shape}")
+        self.preprocess_sample()        
+        self.sample.osim.motion = motion
+
+
+    def preprocess_sample(self,clamp=False):
+
+        if clamp: 
+            self.sample.osim.vertices, self.sample.osim.faces, self.sample.osim.marker_trajectory, self.sample.osim.joints, self.sample.osim.joints_ori = self.sample.osim.fk()
+            lowest_point_location = np.median(np.min(self.sample.osim.vertices,axis=1)[:,1])
+            closest_index = np.argmin(self.sample.osim.vertices[:,:,1] - lowest_point_location)
+            closest_index = np.unravel_index(closest_index, self.sample.osim.vertices[:,:,1].shape)
+            closest_vertex_ind = closest_index[1]
+
+            translation = -self.sample.osim.vertices[:,closest_vertex_ind,:]
+            self.self.sample.osim.motion[:,3:6] += translation
+
+        else: 
+                
+            skel = self.sample.osim.osim.skeleton
+            originalScales = skel.getBodyScales()
+            originalPosition = skel.getPositions()
+            # Set body scales
+            skel.setBodyScales(originalScales)
+            
+            # Set positions
+            skel.setPositions(originalPosition)
+
+            # Get lowest point
+            lowestPointOriginal = skel.getLowestPoint()
+
+            if self.selected_method == "BIGE":
+                for t in range(self.sample.osim.motion.shape[0]):
+
+                    # Set motion first frame to the lowest point
+                    skel.setPositions(self.sample.osim.motion[t, :])
+                    lowestPointFirstFrame = skel.getLowestPoint()
+                    
+                    YOffset = -lowestPointFirstFrame
+                    print(originalPosition, lowestPointFirstFrame, YOffset)
+                    print(self.sample.osim.motion[0,:], lowestPointFirstFrame)
+                    
+                    
+                    print("Lowest point of the skeleton:", lowestPointOriginal, lowestPointFirstFrame)
+                    # Add offset to the skeleton
+                    self.sample.osim.motion[t, 4] -= lowestPointFirstFrame  # Adjust Y position to be above the ground
+                
+                    skel.setPositions(self.sample.osim.motion[t, :])
+                    lowestPointFirstFrame = skel.getLowestPoint()
+                    print("New lowest point of the skeleton after offset:", lowestPointFirstFrame)
+            else:
+                # Set motion first frame to the lowest point
+                skel.setPositions(self.sample.osim.motion[0, :])
+                lowestPointFirstFrame = skel.getLowestPoint()
+                
+                YOffset = -lowestPointFirstFrame
+                print(originalPosition, lowestPointFirstFrame, YOffset)
+                print(self.sample.osim.motion[0,:], lowestPointFirstFrame)
+                
+                
+                print("Lowest point of the skeleton:", lowestPointOriginal, lowestPointFirstFrame)
+                # Add offset to the skeleton
+                self.sample.osim.motion[0, 4] -= lowestPointFirstFrame  # Adjust Y position to be above the ground
+            
+                skel.setPositions(self.sample.osim.motion[0, :])
+                lowestPointFirstFrame = skel.getLowestPoint()
+                print("New lowest point of the skeleton after offset:", lowestPointFirstFrame)
     
     def create_subject_container(self,sample_ind, gui):
         
@@ -220,8 +292,8 @@ class WebsiteSample:
         osim_geometry_path = os.path.join(DATA_DIR,'OpenCap_LaiArnoldModified2017_Geometry')
         
         self.sample.osim.osim = load_osim(osim_path, geometry_path=osim_geometry_path)
-    
-    
+        self.preprocess_sample()            
+        
     def on_dropdown_change(self, key, value):
         print(f"Dropdown changed: {key} -> {value}")
         try:
@@ -317,9 +389,8 @@ class WebsiteSample:
                 
                 self.selected_trial = value
                 trial_path = self.trial_path[value_id]
-                motion = load_mot(self.sample.osim.osim,  trial_path)
-                print(f"Loaded motion data for trial: {self.selected_trial} from {trial_path} {motion.shape}")
-                self.sample.osim.motion = motion        
+                self.load_motion(trial_path)
+
     
             else:
                 print(f"Unknown dropdown: {key}")

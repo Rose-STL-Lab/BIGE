@@ -120,7 +120,7 @@ class BigeDatasetVisualizer():
         # Test relevant files
         compare_files = [
                     "LIMO/FinalFinalHigh/mot_visualization/latents_subject_run_d2020b0e-6d41-4759-87f0-5c158f6ab86a/entry_19_FinalFinalHigh.mot",
-                    "Data/d66330dc-7884-4915-9dbb-0520932294c4/OpenSimData/Kinematics/SQT01.mot",
+                    # "Data/d66330dc-7884-4915-9dbb-0520932294c4/OpenSimData/Kinematics/SQT01.mot",
                     # "Data/d66330dc-7884-4915-9dbb-0520932294c4/MarkerData/SQT01.trc",
                     # "Data/002392d8-b28a-46e9-84ee-65053ec83739/OpenSimData/Dynamics/Sqt02_segment_1/kinematics_activations_Sqt02_segment_1_muscle_driven.mot",
                     # "t2m_baseline/015b7571-9f0b-4db4-a854-68e57640640d/0d9e84e9-57a4-4534-aee2-0d0e8d1e7c45_SQT01_0_pred_3_radians.mot",

@@ -149,7 +149,7 @@ class WebsiteSample:
         
         container_name = f"{self.selected_method}"
         
-        gui.nativeAPI().createCollapsibleContainer(label=container_name, pos=np.array([5, 15]),size=np.array([30, 20]))
+        gui.nativeAPI().createCollapsibleContainer(label=container_name, pos=np.array([0, 0]),size=np.array([30, 100]))
         # gui.nativeAPI().createText("LeftTitle", "BIGE Demo", np.array([5, 2]), np.array([100, 6]),layer=container_name)
 
         # Dropdowns for dataset, experiment, trial, subject, exercise

@@ -2,6 +2,7 @@ import os
 import sys
 import copy
 import numpy as np 
+import traceback
 # Sample loading imports - can be moved to separate file later
 dir_path = os.path.dirname(os.path.abspath(__file__))
 UCSD_OpenCap_Fitness_Dataset_path = os.path.abspath(os.path.join(dir_path,'..', '..', 'UCSD-OpenCap-Fitness-Dataset' , 'src'))
@@ -136,8 +137,19 @@ class WebsiteSample:
             sample = WebsiteSample.load_retrieved_samples(session, file_path)
 
         return sample
-    
-    def load_motion(self, trial_path):
+     
+    def load_motion(self, trial_path=None):
+
+
+        if trial_path is None:
+            value_id = self.trials.index(self.selected_trial)
+            if value_id < 0:
+                print(f"Trial does not exist in trial path: {self.selected_trial}")
+                return 
+            
+            trial_path = self.trial_path[value_id]
+
+
         motion = load_mot(self.sample.osim.osim, trial_path )
         print(f"Loaded motion data for trial: {self.selected_trial} from {trial_path} {motion.shape}")
         self.preprocess_sample()        
@@ -178,8 +190,8 @@ class WebsiteSample:
                     lowestPointFirstFrame = skel.getLowestPoint()
                     
                     YOffset = -lowestPointFirstFrame
-                    print(originalPosition, lowestPointFirstFrame, YOffset)
-                    print(self.sample.osim.motion[0,:], lowestPointFirstFrame)
+                    # print(originalPosition, lowestPointFirstFrame, YOffset)
+                    # print(self.sample.osim.motion[0,:], lowestPointFirstFrame)
                     
                     
                     print("Lowest point of the skeleton:", lowestPointOriginal, lowestPointFirstFrame)
@@ -268,8 +280,15 @@ class WebsiteSample:
             print(f"Error retrieving trials for subject {self.selected_subject}: {error}")
             return False
         self.trials, self.trial_path = trials, trials_path
-        print(self.trials, self.trial_path)
         self.gui.nativeAPI().setDropDownOptions("Trial", self.container_name, trials)
+        
+             
+        self.selected_trial = trials[0]
+        self.gui.nativeAPI().setDropDownValue("Trial", self.container_name, self.selected_trial)
+        # self.load_motion(self.trial_path[0])  # Load the first trial by default
+        
+
+        
         return True
     def load_subject_osim(self):
         """Load the subject' skeletons
@@ -299,6 +318,7 @@ class WebsiteSample:
         try:
 
             if key == "Dataset":
+                self.gui.nativeAPI().setDropDownValue("Dataset", self.container_name, value)
                 self.selected_dataset = value
                 subjects = self.file_locator.dataset2subjects.get(self.selected_dataset, [])
                 print(f"Subjects for dataset {self.selected_dataset}: {subjects}")
@@ -315,6 +335,7 @@ class WebsiteSample:
                         self.gui.nativeAPI().setDropDownOptions("Trial", self.container_name, [])
                         return
 
+
                 else:
                     self.selected_method = "BIGE"
                     self.gui.nativeAPI().setDropDownValue("Method", self.container_name, self.selected_method)
@@ -326,6 +347,12 @@ class WebsiteSample:
                         print(f"No trials found for dataset {self.selected_dataset}")
                         self.gui.nativeAPI().setDropDownOptions("Trial", self.container_name, [])
                         return
+
+
+                self.load_motion()
+
+                    
+
             elif key == "Subject":                
                 value_id = self.file_locator.dataset2subjects[self.selected_dataset].index(value)
                 if value_id < 0:
@@ -348,7 +375,7 @@ class WebsiteSample:
                     print(f"Selected method ID: {value_id}")
                     self.selected_method = value                
                     
-                
+                # Set experiments is can set trial
                 self.gui.nativeAPI().setDropDownOptions("Experiment", self.container_name, self.file_locator.experiments[self.selected_method])
                 self.selected_experiment = None
                 for experiment in self.file_locator.experiments[self.selected_method]:
@@ -366,6 +393,11 @@ class WebsiteSample:
                 else: 
                     print(f"Selected method: {self.selected_method} for subject: {self.selected_subject}")
                     self.gui.nativeAPI().setDropDownValue("Experiment", self.container_name, self.selected_experiment)
+
+
+
+
+
             
             elif key == "Experiment":
                 value_id = self.file_locator.experiments[self.selected_method].index(value)
@@ -382,18 +414,12 @@ class WebsiteSample:
                 else:
                     print(f"Selected experiment: {self.selected_experiment} for subject: {self.selected_subject}")
             elif key == "Trial":
-                value_id = self.trials.index(value)
-                if value_id < 0:
-                    print(f"Invalid trial selection: {value}")
-                    
-                
-                self.selected_trial = value
-                trial_path = self.trial_path[value_id]
-                self.load_motion(trial_path)
+                self.load_motion()
 
     
             else:
                 print(f"Unknown dropdown: {key}")
         except Exception as e:
             print(f"Error loading motion data:{e}")
+            traceback.print_exc()            
 

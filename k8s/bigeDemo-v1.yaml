@@ -33,12 +33,26 @@ spec:
     - containerPort: 8070
       protocol: TCP
     command: ["conda", "run", "-n", "T2M-GPT", "/bin/bash", "-c"]
-    args: 
-    - | 
+    args:
+    - |
+      exec > >(tee /tmp/bige-startup.log) 2>&1
       # Update repositories to latest
       cd /UCSD-OpenCap-Fitness-Dataset
       git -c http.sslVerify=false pull origin main || echo "Failed to update dataset repo"
-      
+
+
+      # Build nimblephysics library
+      echo "🔧 Building nimblephysics library..."
+      cd /nimblephysics
+
+      # Install the package
+      echo "🔧 Installing nimblephysics package..."
+      python setup.py install --force
+
+      # Verify installation
+      echo "🔧 Testing nimblephysics installation..."
+      python -c "import nimblephysics as nimble; print('✅ Nimblephysics imported successfully!')"
+
       cd /T2M-GPT
       git -c http.sslVerify=false pull origin main || echo "Failed to update main repo"
 
@@ -54,19 +68,17 @@ spec:
 
       # Run the nimble demo
       echo "🚀 Starting nimble-gui demo..."
-      python demo/nimble-gui.py visualize | tee bige-demo.log & 
-      
+      conda run -n T2M-GPT python demo/nimble-gui.py visualize | tee bige-demo.log &
+
       # Wait for service to start and show listening ports
       sleep 60
       echo "📡 Active listening ports:"
       lsof -i -P -n | grep LISTEN || echo "No listening ports found"
-      
+
       # Keep container running and show logs
       echo "✅ Service started. Keeping container alive..."
       # Run only for 6 hours for now
-      sleep 20000 
-      echo "📋 Demo logs:"
-      cat bige-demo.log
+      sleep 20000
 
     env: 
     - name: SUBJECT_ID
